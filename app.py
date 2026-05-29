@@ -185,6 +185,10 @@ def resolve_executors(conn, executors_json: str) -> list:
             """, (item,)).fetchone()
             if row:
                 result.append(row_to_dict(row))
+            else:
+                # Исполнитель удалён из справочника, но привязка к задаче
+                # сохраняется (ID не теряется при последующем сохранении).
+                result.append({"id": item, "name": f"#{item} (удалён)", "department_name": None})
         elif isinstance(item, str) and item.strip():
             result.append({"id": None, "name": item, "department_name": None})
     return result

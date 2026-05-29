@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Протокол совещания</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    min-height: 100vh;
+  }
+
+  /* ── Header & tabs ── */
+  header {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 0 24px;
+    display: flex;
+    align-items: stretch;
+    gap: 24px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  }
+  header h1 { font-size: 17px; font-weight: 600; display: flex; align-items: center; padding: 14px 0; white-space: nowrap; }
+
+  .tab-nav { display: flex; gap: 2px; align-items: stretch; }
+  .tab-btn {
+    padding: 0 18px; background: none; border: none; color: #8b9ab8;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border-bottom: 3px solid transparent; transition: color .15s, border-color .15s; white-space: nowrap;
+  }
+  .tab-btn:hover { color: #c9d1e8; }
+  .tab-btn.active { color: #fff; border-bottom-color: #2563eb; }
+
+  /* ── Toolbar ── */
+  .toolbar { padding: 14px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+  .filter-group { display: flex; gap: 6px; flex-shrink: 0; }
+  .filter-btn {
+    padding: 6px 14px; border-radius: 20px; border: 1px solid #ccc;
+    background: #fff; cursor: pointer; font-size: 13px; transition: all .15s; white-space: nowrap;
+  }
+  .filter-btn.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+  .filter-btn:hover:not(.active) { background: #e8eaf0; }
+
+  .search-wrap { flex: 1; min-width: 160px; max-width: 320px; position: relative; }
+  .search-wrap input {
+    width: 100%; padding: 7px 10px 7px 32px;
+    border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; background: #fff;
+  }
+  .search-wrap input:focus { outline: none; border-color: #2563eb; }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; color: #9ca3af; pointer-events: none; }
+
+  .toolbar-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .btn-secondary { padding: 7px 14px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; white-space: nowrap; transition: background .15s; }
+  .btn-secondary:hover { background: #f3f4f6; }
+  .btn-primary { padding: 7px 18px; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .btn-primary:hover { background: #1d4ed8; }
+
+  /* ── Protocol table ── */
+  .table-wrap { padding: 0 24px 24px; overflow-x: auto; }
+
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  thead th {
+    background: #1a1a2e; color: #c9d1e8; font-weight: 500; font-size: 12px;
+    text-transform: uppercase; letter-spacing: .5px; padding: 10px 12px;
+    text-align: left; white-space: nowrap; user-select: none;
+  }
+  thead th.sortable { cursor: pointer; }
+  thead th.sortable:hover { color: #fff; }
+  thead th .sort-arrow { margin-left: 4px; font-size: 10px; opacity: .5; }
+  thead th.sort-asc  .sort-arrow::after { content: '▲'; opacity: 1; }
+  thead th.sort-desc .sort-arrow::after { content: '▼'; opacity: 1; }
+  thead th:not(.sort-asc):not(.sort-desc) .sort-arrow::after { content: '↕'; }
+
+  tbody tr.item-row { border-bottom: 1px solid #f0f2f5; transition: background .1s; }
+  tbody tr.item-row:hover { background: #f7f8fc; }
+  tbody tr.qs-row td { padding: 0; border-bottom: 1px solid #f0f2f5; }
+
+  td { padding: 10px 12px; vertical-align: top; }
+  td.num  { color: #888; font-size: 12px; width: 36px; text-align: center; }
+  td.prio { width: 28px; text-align: center; padding: 10px 4px; }
+  .prio-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; }
+  .prio-high   { background: #ef4444; }
+  .prio-medium { background: #f59e0b; }
+  .prio-low    { background: #6366f1; }
+
+  td.ticket   { white-space: nowrap; font-size: 13px; color: #6366f1; }
+  td.topic    { max-width: 220px; font-weight: 500; }
+  td.status   { max-width: 300px; min-width: 200px; }
+  td.executor { max-width: 180px; font-size: 13px; }
+
+  .exec-chip {
+    display: inline-block; margin: 1px 2px 1px 0;
+    padding: 2px 8px; border-radius: 10px;
+    background: #f0f4ff; border: 1px solid #c7d2fe;
+    font-size: 12px; color: #3730a3; white-space: nowrap;
+  }
+  .exec-chip .dept { color: #818cf8; margin-right: 4px; }
+
+  .status-row { display: flex; gap: 10px; padding: 3px 0; align-items: baseline; border-bottom: 1px dashed #eef0f5; }
+  .status-row:last-of-type { border-bottom: none; }
+  .status-row .s-date { flex-shrink: 0; width: 72px; font-size: 11px; color: #6366f1; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .status-row.latest .s-date { color: #1d4ed8; }
+  .status-row .s-note { font-size: 13px; color: #374151; word-break: break-word; }
+  .status-empty { font-size: 13px; color: #bbb; }
+  .status-link { display: inline-block; margin-top: 5px; font-size: 11px; color: #6366f1; cursor: pointer; text-decoration: underline dotted; }
+  .status-link:hover { color: #4338ca; }
+
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: opacity .15s, transform .1s; user-select: none; }
+  .badge:hover { opacity: .8; } .badge:active { transform: scale(.96); }
+  .badge-in_progress { background: #dbeafe; color: #1d4ed8; }
+  .badge-postponed   { background: #fef3c7; color: #92400e; }
+  .badge-closed      { background: #d1fae5; color: #065f46; }
+
+  td.due { white-space: nowrap; font-size: 13px; }
+  td.due.overdue { color: #dc2626; font-weight: 600; }
+
+  td.actions { white-space: nowrap; width: 90px; }
+  .icon-btn { background: none; border: none; cursor: pointer; padding: 4px 5px; border-radius: 4px; font-size: 15px; opacity: .5; transition: opacity .15s, background .15s; }
+  .icon-btn:hover { opacity: 1; background: #e8eaf0; }
+  .icon-btn.del:hover { background: #fee2e2; }
+  .icon-btn.qs-toggle { font-size: 13px; font-weight: 700; color: #6366f1; }
+
+  /* ── Quick status inline ── */
+  .qs-form { display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: #f0f4ff; border-top: 1px solid #c7d2fe; }
+  .qs-form input[type="date"], .qs-form input[type="text"] { padding: 5px 8px; border: 1px solid #c7d2fe; border-radius: 5px; font-size: 13px; font-family: inherit; background: #fff; }
+  .qs-form input[type="date"] { flex-shrink: 0; width: 140px; }
+  .qs-form input[type="text"] { flex: 1; }
+  .qs-form input:focus { outline: none; border-color: #6366f1; }
+  .btn-qs-save { padding: 5px 14px; background: #6366f1; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .btn-qs-save:hover { background: #4f46e5; }
+  .btn-qs-cancel { background: none; border: none; cursor: pointer; font-size: 18px; color: #9ca3af; line-height: 1; padding: 0 2px; }
+  .btn-qs-cancel:hover { color: #374151; }
+
+  .empty { text-align: center; padding: 48px; color: #aaa; }
+  .count { font-size: 12px; color: #888; margin-left: 4px; }
+
+  /* ── Справочники tab ── */
+  .ref-page { padding: 24px; }
+  .ref-page h2 { font-size: 16px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }
+  .ref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; }
+
+  @media (max-width: 700px) { .ref-grid { grid-template-columns: 1fr; } }
+
+  .ref-card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .ref-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: #1a1a2e; }
+
+  .ref-add-form { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .ref-add-form input, .ref-add-form select {
+    flex: 1; min-width: 120px; padding: 7px 10px; border: 1px solid #d1d5db;
+    border-radius: 6px; font-size: 13px; font-family: inherit; background: #fff;
+  }
+  .ref-add-form input:focus, .ref-add-form select:focus { outline: none; border-color: #2563eb; }
+  .btn-ref-add { padding: 7px 14px; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .btn-ref-add:hover { background: #1d4ed8; }
+
+  .ref-list { display: flex; flex-direction: column; gap: 6px; max-height: 400px; overflow-y: auto; }
+  .ref-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f7f8fc; border-radius: 6px; border: 1px solid #e5e7eb; }
+  .ref-item .ref-name { flex: 1; font-size: 13px; }
+  .ref-item .ref-sub  { font-size: 11px; color: #818cf8; margin-left: 2px; }
+  .ref-item .ref-del  { background: none; border: none; cursor: pointer; color: #d1d5db; font-size: 17px; line-height: 1; padding: 0 2px; transition: color .15s; flex-shrink: 0; }
+  .ref-item .ref-del:hover { color: #ef4444; }
+  .ref-empty { color: #aaa; font-size: 13px; padding: 12px 0; }
+
+  /* ── Modals ── */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; align-items: center; justify-content: center; }
+  .overlay.open { display: flex; }
+
+  .modal { background: #fff; border-radius: 12px; padding: 28px; width: 520px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+  .modal h2 { font-size: 16px; margin-bottom: 20px; }
+
+  .form-row { margin-bottom: 14px; }
+  .form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 500; }
+  .form-row input, .form-row select, .form-row textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+    font-size: 13px; font-family: inherit; background: #fff; transition: border-color .15s;
+  }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline: none; border-color: #2563eb; }
+  .form-row textarea { resize: vertical; min-height: 60px; }
+
+  .two-col   { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .two-col > div label, .three-col > div label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 500; }
+  .two-col > div input, .two-col > div select,
+  .three-col > div input, .three-col > div select {
+    width: 100%; padding: 8px 10px; border: 1px solid #d1d5db;
+    border-radius: 6px; font-size: 13px; font-family: inherit; background: #fff;
+  }
+  .two-col > div input:focus, .two-col > div select:focus,
+  .three-col > div input:focus, .three-col > div select:focus { outline: none; border-color: #2563eb; }
+
+  /* Dynamic executor selects in form */
+  .executors-label { font-size: 12px; color: #555; font-weight: 500; margin-bottom: 6px; }
+  .executor-row { display: flex; gap: 6px; margin-bottom: 6px; }
+  .executor-row select {
+    flex: 1; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+    font-size: 13px; font-family: inherit; background: #fff; cursor: pointer;
+  }
+  .executor-row select:focus { outline: none; border-color: #2563eb; }
+  .btn-exec-remove {
+    width: 34px; height: 36px; flex-shrink: 0; border: 1px solid #d1d5db;
+    border-radius: 6px; background: #fff; cursor: pointer; font-size: 16px;
+    color: #9ca3af; display: flex; align-items: center; justify-content: center; transition: all .15s;
+  }
+  .btn-exec-remove:hover { border-color: #ef4444; color: #ef4444; background: #fee2e2; }
+  .btn-exec-add { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border: 1px dashed #6366f1; border-radius: 6px; background: none; color: #6366f1; font-size: 12px; cursor: pointer; transition: background .15s; }
+  .btn-exec-add:hover { background: #eef2ff; }
+  .no-executors-hint { font-size: 12px; color: #aaa; font-style: italic; margin-bottom: 8px; }
+
+  hr.divider { border: none; border-top: 1px solid #e5e7eb; margin: 16px 0; }
+  .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: #9ca3af; margin-bottom: 10px; }
+
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+  .btn-cancel { padding: 7px 18px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; }
+  .btn-cancel:hover { background: #f3f4f6; }
+  .btn-save { padding: 7px 18px; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .btn-save:hover { background: #1d4ed8; }
+
+  /* History modal */
+  .history-modal { width: 560px; }
+  .history-topic { font-size: 13px; color: #555; margin-bottom: 16px; padding: 8px 12px; background: #f7f8fc; border-radius: 6px; border-left: 3px solid #2563eb; }
+  .history-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .history-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; background: #f7f8fc; border-radius: 8px; border: 1px solid #e5e7eb; }
+  .history-item.latest { border-color: #bfdbfe; background: #eff6ff; }
+  .history-dot { width: 8px; height: 8px; border-radius: 50%; background: #6366f1; margin-top: 5px; flex-shrink: 0; }
+  .history-item.latest .history-dot { background: #2563eb; }
+  .history-body { flex: 1; min-width: 0; }
+  .history-date { font-size: 11px; color: #6366f1; font-weight: 600; margin-bottom: 2px; }
+  .history-item.latest .history-date { color: #1d4ed8; }
+  .history-note { font-size: 13px; color: #374151; word-break: break-word; }
+  .history-note-empty { font-size: 13px; color: #aaa; font-style: italic; }
+  .history-del { background: none; border: none; cursor: pointer; color: #d1d5db; font-size: 16px; padding: 0 2px; line-height: 1; transition: color .15s; flex-shrink: 0; }
+  .history-del:hover { color: #ef4444; }
+  .history-empty { text-align: center; color: #aaa; padding: 24px; font-size: 13px; }
+
+  .add-status-form { border: 1px dashed #d1d5db; border-radius: 8px; padding: 14px; background: #fafafa; }
+  .add-status-form h3 { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 10px; }
+  .add-status-form textarea { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 56px; margin-bottom: 10px; }
+  .add-status-form textarea:focus { outline: none; border-color: #2563eb; }
+  .add-status-form .two-col { margin-bottom: 10px; }
+  .btn-add-status { padding: 6px 16px; background: #6366f1; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .btn-add-status:hover { background: #4f46e5; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Протокол совещания</h1>
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="protocol">Протокол</button>
+    <button class="tab-btn" data-tab="refs">Справочники</button>
+  </nav>
+</header>
+
+<!-- ── Tab: Протокол ── -->
+<div id="tab-protocol">
+  <div class="toolbar">
+    <div class="filter-group" id="filterGroup">
+      <button class="filter-btn active" data-state="">Все <span class="count" id="cnt-all"></span></button>
+      <button class="filter-btn" data-state="in_progress">В работе <span class="count" id="cnt-in_progress"></span></button>
+      <button class="filter-btn" data-state="postponed">Отложено <span class="count" id="cnt-postponed"></span></button>
+      <button class="filter-btn" data-state="closed">Закрыто <span class="count" id="cnt-closed"></span></button>
+    </div>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Поиск по теме, тикету, исполнителю…">
+    </div>
+    <div class="toolbar-right">
+      <button class="btn-secondary" id="btnExport">⬇ Экспорт</button>
+      <button class="btn-secondary" id="btnImport">⬆ Импорт</button>
+      <input type="file" id="importFile" accept=".csv" style="display:none">
+      <button class="btn-primary" id="btnAdd">+ Добавить</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th title="Приоритет">●</th>
+          <th class="sortable" data-col="ticket">Тикет <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="topic">Тема <span class="sort-arrow"></span></th>
+          <th>Статусы</th>
+          <th class="sortable" data-col="state">Состояние <span class="sort-arrow"></span></th>
+          <th class="sortable" data-col="due_date">Срок <span class="sort-arrow"></span></th>
+          <th>Исполнитель</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Tab: Справочники ── -->
+<div id="tab-refs" style="display:none">
+  <div class="ref-page">
+    <h2>Справочники</h2>
+    <div class="ref-grid">
+
+      <!-- Отделы -->
+      <div class="ref-card">
+        <h3>Отделы</h3>
+        <div class="ref-add-form">
+          <input type="text" id="deptNameInput" placeholder="Название отдела" maxlength="100">
+          <button class="btn-ref-add" id="btnDeptAdd">Добавить</button>
+        </div>
+        <div class="ref-list" id="deptList"></div>
+      </div>
+
+      <!-- Исполнители -->
+      <div class="ref-card">
+        <h3>Исполнители</h3>
+        <div class="ref-add-form">
+          <input type="text" id="execNameInput" placeholder="ФИО / название" maxlength="120">
+          <select id="execDeptSelect">
+            <option value="">Без отдела</option>
+          </select>
+          <button class="btn-ref-add" id="btnExecAdd">Добавить</button>
+        </div>
+        <div class="ref-list" id="execList"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Item modal ── -->
+<div class="overlay" id="itemOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">Новый пункт</h2>
+    <form id="itemForm" autocomplete="off">
+      <input type="hidden" id="fieldId">
+
+      <div class="form-row">
+        <label>Тема *</label>
+        <textarea id="fieldTopic" rows="2" required></textarea>
+      </div>
+
+      <div class="form-row">
+        <label>Номер тикета</label>
+        <input type="text" id="fieldTicket" placeholder="например, INC0012345">
+      </div>
+
+      <div class="three-col form-row">
+        <div>
+          <label>Состояние</label>
+          <select id="fieldState">
+            <option value="in_progress">В работе</option>
+            <option value="postponed">Отложено</option>
+            <option value="closed">Закрыто</option>
+          </select>
+        </div>
+        <div>
+          <label>Приоритет</label>
+          <select id="fieldPriority">
+            <option value="">Не задан</option>
+            <option value="high">🔴 Высокий</option>
+            <option value="medium">🟡 Средний</option>
+            <option value="low">🔵 Низкий</option>
+          </select>
+        </div>
+        <div>
+          <label>Срок выполнения</label>
+          <input type="date" id="fieldDueDate">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="executors-label">Исполнители</div>
+        <div id="executorsWrap"></div>
+        <button type="button" class="btn-exec-add" id="btnAddExecutorField">+ добавить исполнителя</button>
+      </div>
+
+      <hr class="divider">
+      <div class="section-label" id="statusSectionLabel">Первый статус</div>
+
+      <div class="two-col form-row">
+        <div>
+          <label>Дата статуса</label>
+          <input type="date" id="fieldStatusDate">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Описание</label>
+        <textarea id="fieldStatusNote" rows="2"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="btnItemCancel">Отмена</button>
+        <button type="submit" class="btn-save">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── History modal ── -->
+<div class="overlay" id="historyOverlay">
+  <div class="modal history-modal">
+    <h2>История статусов</h2>
+    <div class="history-topic" id="historyTopic"></div>
+    <div class="history-list" id="historyList"></div>
+    <div class="add-status-form">
+      <h3>Добавить статус</h3>
+      <div class="two-col"><div><label>Дата</label><input type="date" id="newStatusDate"></div></div>
+      <textarea id="newStatusNote" placeholder="Описание статуса…"></textarea>
+      <button class="btn-add-status" id="btnAddStatus">Добавить</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="btnHistoryClose">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api/items';
+
+let allItems       = [];
+let allExecutors   = [];
+let allDepartments = [];
+let currentFilter  = '';
+let searchQuery    = '';
+let historyItemId  = null;
+let sortState      = { col: null, dir: 'asc' };
+let openQsId       = null;
+
+const stateLabel = { in_progress: 'В работе', postponed: 'Отложено', closed: 'Закрыто' };
+const stateBadge = { in_progress: 'badge-in_progress', postponed: 'badge-postponed', closed: 'badge-closed' };
+const stateOrder = ['in_progress', 'postponed', 'closed'];
+const priorityConfig = {
+  high:   { cls: 'prio-high',   label: 'Высокий' },
+  medium: { cls: 'prio-medium', label: 'Средний' },
+  low:    { cls: 'prio-low',    label: 'Низкий'  },
+};
+const prioritySortOrder = { high: 0, medium: 1, low: 2, '': 3 };
+
+// ── Загрузка ───────────────────────────────────────────────────────────────
+
+async function loadAll() {
+  const [iRes, eRes, dRes] = await Promise.all([
+    fetch(API),
+    fetch('/api/executors'),
+    fetch('/api/departments'),
+  ]);
+  allItems       = await iRes.json();
+  allExecutors   = await eRes.json();
+  allDepartments = await dRes.json();
+  updateCounts();
+  render();
+}
+
+async function loadRefs() {
+  const [eRes, dRes] = await Promise.all([
+    fetch('/api/executors'),
+    fetch('/api/departments'),
+  ]);
+  allExecutors   = await eRes.json();
+  allDepartments = await dRes.json();
+  renderDeptList();
+  renderExecList();
+  renderExecDeptSelect();
+}
+
+function updateCounts() {
+  const c = { in_progress: 0, postponed: 0, closed: 0 };
+  allItems.forEach(i => c[i.state]++);
+  document.getElementById('cnt-all').textContent = allItems.length;
+  Object.entries(c).forEach(([k, v]) => document.getElementById('cnt-' + k).textContent = v);
+}
+
+// ── Утилиты ────────────────────────────────────────────────────────────────
+
+function fmtDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${day}.${m}.${y}`;
+}
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function today() { return new Date().toISOString().slice(0, 10); }
+
+// ── Табы ───────────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-protocol').style.display = btn.dataset.tab === 'protocol' ? '' : 'none';
+    document.getElementById('tab-refs').style.display     = btn.dataset.tab === 'refs'     ? '' : 'none';
+    if (btn.dataset.tab === 'refs') loadRefs();
+  });
+});
+
+// ── Фильтры + поиск ────────────────────────────────────────────────────────
+
+document.getElementById('filterGroup').addEventListener('click', e => {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = btn.dataset.state;
+  render();
+});
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.toLowerCase().trim();
+  render();
+});
+
+function applyFilters(items) {
+  let r = currentFilter ? items.filter(i => i.state === currentFilter) : items;
+  if (searchQuery) {
+    const q = searchQuery;
+    r = r.filter(i =>
+      (i.topic  || '').toLowerCase().includes(q) ||
+      (i.ticket || '').toLowerCase().includes(q) ||
+      (i.executors || []).some(e =>
+        (e.name || '').toLowerCase().includes(q) ||
+        (e.department_name || '').toLowerCase().includes(q)
+      )
+    );
+  }
+  return r;
+}
+
+function applySort(items) {
+  if (!sortState.col) return items;
+  return [...items].sort((a, b) => {
+    let va = a[sortState.col] ?? '';
+    let vb = b[sortState.col] ?? '';
+    if (sortState.col === 'priority') {
+      va = prioritySortOrder[va] ?? 3;
+      vb = prioritySortOrder[vb] ?? 3;
+      return sortState.dir === 'asc' ? va - vb : vb - va;
+    }
+    if (va < vb) return sortState.dir === 'asc' ? -1 : 1;
+    if (va > vb) return sortState.dir === 'asc' ?  1 : -1;
+    return 0;
+  });
+}
+
+// ── Сортировка ─────────────────────────────────────────────────────────────
+
+document.querySelectorAll('thead th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    sortState.dir = sortState.col === col ? (sortState.dir === 'asc' ? 'desc' : 'asc') : 'asc';
+    sortState.col = col;
+    render();
+  });
+});
+
+// ── Рендер таблицы ─────────────────────────────────────────────────────────
+
+function render() {
+  document.querySelectorAll('thead th.sortable').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.col === sortState.col)
+      th.classList.add(sortState.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+  });
+
+  const items = applySort(applyFilters(allItems));
+  const tbody = document.getElementById('tableBody');
+
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">Нет пунктов</td></tr>';
+    return;
+  }
+
+  const todayStr = today();
+  tbody.innerHTML = items.map((item, idx) => {
+    const recent  = item.recent_statuses || [];
+    const overdue = item.due_date && item.due_date < todayStr && item.state !== 'closed';
+    const pcfg    = priorityConfig[item.priority] || null;
+
+    // Чипы исполнителей с отделом
+    const execChips = (item.executors || []).map(e => {
+      const dept = e.department_name ? `<span class="dept">${esc(e.department_name)} —</span> ` : '';
+      return `<span class="exec-chip">${dept}${esc(e.name)}</span>`;
+    }).join('') || '—';
+
+    const statusHtml = recent.length
+      ? recent.map((s, i) => `
+          <div class="status-row ${i === 0 ? 'latest' : ''}">
+            <span class="s-date">${s.status_date ? fmtDate(s.status_date) : '—'}</span>
+            <span class="s-note">${esc(s.status_note || '')}</span>
+          </div>`).join('')
+      : '<div class="status-empty">Нет статусов</div>';
+
+    return `
+      <tr class="item-row">
+        <td class="num">${idx + 1}</td>
+        <td class="prio">${pcfg ? `<span class="prio-dot ${pcfg.cls}" title="${pcfg.label}"></span>` : ''}</td>
+        <td class="ticket">${item.ticket ? esc(item.ticket) : '—'}</td>
+        <td class="topic">${esc(item.topic)}</td>
+        <td class="status">
+          ${statusHtml}
+          <span class="status-link" onclick="openHistory(${item.id})">+ добавить / вся история</span>
+        </td>
+        <td>
+          <span class="badge ${stateBadge[item.state]}" onclick="cycleState(${item.id})" title="Кликните для смены">
+            ${stateLabel[item.state]}
+          </span>
+        </td>
+        <td class="due ${overdue ? 'overdue' : ''}">${item.due_date ? fmtDate(item.due_date) : '—'}</td>
+        <td class="executor">${execChips}</td>
+        <td class="actions">
+          <button class="icon-btn qs-toggle" title="Быстрый статус" onclick="toggleQs(${item.id})">+</button>
+          <button class="icon-btn" title="Редактировать" onclick="openEdit(${item.id})">✏️</button>
+          <button class="icon-btn del" title="Удалить" onclick="deleteItem(${item.id})">🗑️</button>
+        </td>
+      </tr>
+      <tr class="qs-row" id="qs-${item.id}" style="display:none">
+        <td colspan="9">
+          <div class="qs-form">
+            <input type="date" id="qs-date-${item.id}">
+            <input type="text" id="qs-note-${item.id}" placeholder="Описание статуса…" onkeydown="qsKeydown(event,${item.id})">
+            <button class="btn-qs-save" onclick="saveQs(${item.id})">Сохранить</button>
+            <button class="btn-qs-cancel" onclick="closeQs()">×</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+// ── Смена состояния кликом ─────────────────────────────────────────────────
+
+async function cycleState(id) {
+  const item = allItems.find(i => i.id === id);
+  if (!item) return;
+  const next = stateOrder[(stateOrder.indexOf(item.state) + 1) % stateOrder.length];
+  await fetch(`${API}/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ state: next }) });
+  loadAll();
+}
+
+// ── Быстрый статус ─────────────────────────────────────────────────────────
+
+function toggleQs(id) {
+  const isOpen = document.getElementById(`qs-${id}`)?.style.display !== 'none';
+  closeQs();
+  if (!isOpen) {
+    const row = document.getElementById(`qs-${id}`);
+    if (!row) return;
+    row.style.display = '';
+    openQsId = id;
+    const d = document.getElementById(`qs-date-${id}`);
+    if (d) d.value = today();
+    const n = document.getElementById(`qs-note-${id}`);
+    if (n) n.focus();
+  }
+}
+function closeQs() {
+  if (openQsId) {
+    const row = document.getElementById(`qs-${openQsId}`);
+    if (row) row.style.display = 'none';
+    openQsId = null;
+  }
+}
+function qsKeydown(e, id) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveQs(id); }
+  if (e.key === 'Escape') closeQs();
+}
+async function saveQs(id) {
+  const date = document.getElementById(`qs-date-${id}`)?.value || null;
+  const note = document.getElementById(`qs-note-${id}`)?.value.trim() || null;
+  if (!note) { closeQs(); return; }
+  await fetch(`${API}/${id}/statuses`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status_date: date, status_note: note }) });
+  closeQs();
+  loadAll();
+}
+
+// ── Форма: динамические поля исполнителей ──────────────────────────────────
+
+/**
+ * Строит <select> с исполнителями, сгруппированными по отделам.
+ * selectedExec — полный объект исполнителя задачи; нужен, чтобы подставить
+ * запасную опцию, если исполнитель был удалён из справочника (иначе при
+ * сохранении он молча потерялся бы).
+ */
+function buildExecutorSelect(selectedId = '', selectedExec = null) {
+  const sel = document.createElement('select');
+
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = '— не выбран —';
+  sel.appendChild(blank);
+
+  // Исполнитель есть в задаче, но отсутствует в справочнике — добавляем
+  // запасную опцию, чтобы привязка сохранилась.
+  const inDirectory = selectedId && allExecutors.some(e => e.id === selectedId);
+  if (selectedId && selectedExec && !inDirectory) {
+    const og = document.createElement('optgroup');
+    og.label = 'Удалён из справочника';
+    const opt = document.createElement('option');
+    opt.value = selectedExec.id;
+    opt.textContent = selectedExec.department_name
+      ? `${selectedExec.department_name} — ${selectedExec.name}`
+      : selectedExec.name;
+    og.appendChild(opt);
+    sel.appendChild(og);
+  }
+
+  // Группируем по отделу
+  const byDept = {};
+  const noDept = [];
+  allExecutors.forEach(e => {
+    if (e.department_name) {
+      if (!byDept[e.department_name]) byDept[e.department_name] = [];
+      byDept[e.department_name].push(e);
+    } else {
+      noDept.push(e);
+    }
+  });
+
+  Object.keys(byDept).sort((a, b) => a.localeCompare(b, 'ru')).forEach(dname => {
+    const og = document.createElement('optgroup');
+    og.label = dname;
+    byDept[dname].forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.id;
+      opt.textContent = e.name;
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  });
+
+  if (noDept.length) {
+    const og = document.createElement('optgroup');
+    og.label = 'Без отдела';
+    noDept.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.id;
+      opt.textContent = e.name;
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  }
+
+  if (selectedId) sel.value = String(selectedId);
+  return sel;
+}
+
+function addExecutorField(executor = null) {
+  const wrap = document.getElementById('executorsWrap');
+  const selectedId = executor ? executor.id : '';
+
+  // Справочник пуст и нечего восстанавливать — показываем подсказку.
+  if (!allExecutors.length && !selectedId) {
+    if (!document.querySelector('.no-executors-hint')) {
+      const hint = document.createElement('p');
+      hint.className = 'no-executors-hint';
+      hint.textContent = 'Справочник пуст — сначала добавьте исполнителей во вкладке «Справочники».';
+      wrap.parentNode.insertBefore(hint, wrap);
+    }
+    return;
+  }
+
+  const row = document.createElement('div');
+  row.className = 'executor-row';
+
+  const sel = buildExecutorSelect(selectedId, executor);
+  const btn = document.createElement('button');
+  btn.type      = 'button';
+  btn.className = 'btn-exec-remove';
+  btn.title     = 'Убрать';
+  btn.textContent = '−';
+  btn.addEventListener('click', () => {
+    const rows = wrap.querySelectorAll('.executor-row');
+    if (rows.length === 1) { sel.value = ''; } else { row.remove(); }
+  });
+
+  row.appendChild(sel);
+  row.appendChild(btn);
+  wrap.appendChild(row);
+}
+
+function getExecutorsFromForm() {
+  return [...document.querySelectorAll('#executorsWrap .executor-row select')]
+    .map(s => parseInt(s.value))
+    .filter(v => !isNaN(v) && v > 0);
+}
+
+function setExecutorsInForm(executors) {
+  document.querySelector('.no-executors-hint')?.remove();
+  const wrap = document.getElementById('executorsWrap');
+  wrap.innerHTML = '';
+  if (executors.length) {
+    executors.forEach(e => addExecutorField(e));
+  } else {
+    addExecutorField();
+  }
+}
+
+document.getElementById('btnAddExecutorField').addEventListener('click', () => addExecutorField());
+
+// ── Item modal ─────────────────────────────────────────────────────────────
+
+const itemOverlay = document.getElementById('itemOverlay');
+const itemForm    = document.getElementById('itemForm');
+
+function openAdd() {
+  document.getElementById('modalTitle').textContent         = 'Новый пункт';
+  document.getElementById('statusSectionLabel').textContent = 'Первый статус';
+  itemForm.reset();
+  document.getElementById('fieldId').value         = '';
+  document.getElementById('fieldStatusDate').value = today();
+  setExecutorsInForm([]);
+  itemOverlay.classList.add('open');
+  document.getElementById('fieldTopic').focus();
+}
+
+function openEdit(id) {
+  const item = allItems.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('modalTitle').textContent         = 'Редактировать задачу';
+  document.getElementById('statusSectionLabel').textContent = 'Добавить статус';
+  document.getElementById('fieldId').value        = id;
+  document.getElementById('fieldTopic').value     = item.topic;
+  document.getElementById('fieldTicket').value    = item.ticket   || '';
+  document.getElementById('fieldPriority').value  = item.priority || '';
+  document.getElementById('fieldState').value     = item.state;
+  document.getElementById('fieldDueDate').value   = item.due_date || '';
+  document.getElementById('fieldStatusDate').value = today();
+  document.getElementById('fieldStatusNote').value = '';
+  setExecutorsInForm(item.executors || []);
+  itemOverlay.classList.add('open');
+}
+
+function closeItemModal() { itemOverlay.classList.remove('open'); }
+
+document.getElementById('btnAdd').addEventListener('click', openAdd);
+document.getElementById('btnItemCancel').addEventListener('click', closeItemModal);
+itemOverlay.addEventListener('click', e => { if (e.target === itemOverlay) closeItemModal(); });
+
+itemForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const id         = document.getElementById('fieldId').value;
+  const statusDate = document.getElementById('fieldStatusDate').value || null;
+  const statusNote = document.getElementById('fieldStatusNote').value.trim() || null;
+
+  const payload = {
+    topic:     document.getElementById('fieldTopic').value.trim(),
+    ticket:    document.getElementById('fieldTicket').value.trim()  || null,
+    priority:  document.getElementById('fieldPriority').value       || null,
+    state:     document.getElementById('fieldState').value,
+    due_date:  document.getElementById('fieldDueDate').value        || null,
+    executors: getExecutorsFromForm(),
+  };
+
+  if (id) {
+    await fetch(`${API}/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (statusNote) {
+      await fetch(`${API}/${id}/statuses`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status_date: statusDate, status_note: statusNote }) });
+    }
+  } else {
+    await fetch(API, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, status_date: statusDate, status_note: statusNote }) });
+  }
+  closeItemModal();
+  loadAll();
+});
+
+async function deleteItem(id) {
+  const item = allItems.find(i => i.id === id);
+  if (!confirm(`Удалить задачу?\n\n${item?.topic}`)) return;
+  await fetch(`${API}/${id}`, { method: 'DELETE' });
+  loadAll();
+}
+
+// ── History modal ──────────────────────────────────────────────────────────
+
+const historyOverlay = document.getElementById('historyOverlay');
+
+async function openHistory(id) {
+  historyItemId = id;
+  document.getElementById('historyTopic').textContent = allItems.find(i => i.id === id)?.topic || '';
+  document.getElementById('newStatusDate').value = today();
+  document.getElementById('newStatusNote').value = '';
+  await renderHistory();
+  historyOverlay.classList.add('open');
+}
+
+async function renderHistory() {
+  const res      = await fetch(`${API}/${historyItemId}/statuses`);
+  const statuses = await res.json();
+  const list     = document.getElementById('historyList');
+  if (!statuses.length) { list.innerHTML = '<div class="history-empty">Статусов ещё нет</div>'; return; }
+  list.innerHTML = statuses.map((s, idx) => `
+    <div class="history-item ${idx === 0 ? 'latest' : ''}">
+      <div class="history-dot"></div>
+      <div class="history-body">
+        <div class="history-date">${s.status_date ? fmtDate(s.status_date) : 'Дата не указана'}</div>
+        ${s.status_note ? `<div class="history-note">${esc(s.status_note)}</div>` : `<div class="history-note-empty">Описание не указано</div>`}
+      </div>
+      <button class="history-del" onclick="deleteStatus(${s.id})">×</button>
+    </div>`).join('');
+}
+
+async function deleteStatus(statusId) {
+  if (!confirm('Удалить этот статус?')) return;
+  await fetch(`/api/statuses/${statusId}`, { method: 'DELETE' });
+  await renderHistory();
+  loadAll();
+}
+
+document.getElementById('btnAddStatus').addEventListener('click', async () => {
+  const date = document.getElementById('newStatusDate').value || null;
+  const note = document.getElementById('newStatusNote').value.trim() || null;
+  if (!note) return;
+  await fetch(`${API}/${historyItemId}/statuses`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status_date: date, status_note: note }) });
+  document.getElementById('newStatusNote').value = '';
+  document.getElementById('newStatusDate').value = today();
+  await renderHistory();
+  loadAll();
+});
+
+function closeHistoryModal() { historyOverlay.classList.remove('open'); historyItemId = null; }
+document.getElementById('btnHistoryClose').addEventListener('click', closeHistoryModal);
+historyOverlay.addEventListener('click', e => { if (e.target === historyOverlay) closeHistoryModal(); });
+
+// ── Справочник: Отделы ─────────────────────────────────────────────────────
+
+function renderDeptList() {
+  const list = document.getElementById('deptList');
+  if (!allDepartments.length) {
+    list.innerHTML = '<div class="ref-empty">Список пуст</div>';
+    return;
+  }
+  list.innerHTML = allDepartments.map(d => `
+    <div class="ref-item">
+      <span class="ref-name">${esc(d.name)}</span>
+      <button class="ref-del" onclick="deleteDept(${d.id})" title="Удалить">×</button>
+    </div>`).join('');
+}
+
+async function addDept() {
+  const input = document.getElementById('deptNameInput');
+  const name  = input.value.trim();
+  if (!name) return;
+  const res = await fetch('/api/departments', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+  if (res.status === 409) { alert('Такой отдел уже существует.'); return; }
+  input.value = '';
+  await loadRefs();
+}
+
+async function deleteDept(id) {
+  const dept = allDepartments.find(d => d.id === id);
+  if (!confirm(`Удалить отдел «${dept?.name}»?\n\nИсполнители этого отдела останутся, но потеряют привязку к отделу.`)) return;
+  await fetch(`/api/departments/${id}`, { method: 'DELETE' });
+  await loadRefs();
+}
+
+document.getElementById('btnDeptAdd').addEventListener('click', addDept);
+document.getElementById('deptNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') addDept(); });
+
+// ── Справочник: Исполнители ────────────────────────────────────────────────
+
+function renderExecList() {
+  const list = document.getElementById('execList');
+  if (!allExecutors.length) {
+    list.innerHTML = '<div class="ref-empty">Список пуст</div>';
+    return;
+  }
+  list.innerHTML = allExecutors.map(e => `
+    <div class="ref-item">
+      <span class="ref-name">
+        ${esc(e.name)}
+        ${e.department_name ? `<span class="ref-sub">${esc(e.department_name)}</span>` : ''}
+      </span>
+      <button class="ref-del" onclick="deleteExecutor(${e.id})" title="Удалить">×</button>
+    </div>`).join('');
+}
+
+/** Обновляет <select> выбора отдела в форме добавления исполнителя. */
+function renderExecDeptSelect() {
+  const sel = document.getElementById('execDeptSelect');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Без отдела</option>';
+  allDepartments.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.name;
+    sel.appendChild(opt);
+  });
+  sel.value = cur;
+}
+
+async function addExecutorRef() {
+  const nameInput = document.getElementById('execNameInput');
+  const deptSel   = document.getElementById('execDeptSelect');
+  const name      = nameInput.value.trim();
+  if (!name) return;
+  const deptId = deptSel.value ? parseInt(deptSel.value) : null;
+  const res = await fetch('/api/executors', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, department_id: deptId }) });
+  if (res.status === 409) { alert('Такой исполнитель уже есть в списке.'); return; }
+  nameInput.value = '';
+  await loadRefs();
+}
+
+async function deleteExecutor(id) {
+  const exec = allExecutors.find(e => e.id === id);
+  if (!confirm(`Удалить «${exec?.name}» из справочника?\n\nЗадачи с этим исполнителем затронуты не будут.`)) return;
+  await fetch(`/api/executors/${id}`, { method: 'DELETE' });
+  await loadRefs();
+}
+
+document.getElementById('btnExecAdd').addEventListener('click', addExecutorRef);
+document.getElementById('execNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') addExecutorRef(); });
+
+// ── Экспорт / Импорт ──────────────────────────────────────────────────────
+
+document.getElementById('btnExport').addEventListener('click', () => { window.location = '/api/export/csv'; });
+document.getElementById('btnImport').addEventListener('click', () => { document.getElementById('importFile').click(); });
+document.getElementById('importFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  const res  = await fetch('/api/import/csv', { method: 'POST', body: fd });
+  const data = await res.json();
+  e.target.value = '';
+  alert(`Импортировано задач: ${data.imported}`);
+  loadAll();
+});
+
+// ── Старт ──────────────────────────────────────────────────────────────────
+
+loadAll();
+</script>
+</body>
+</html>
