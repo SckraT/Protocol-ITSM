@@ -463,6 +463,158 @@
     tbody tr.item-row { page-break-inside: avoid; }
     thead { display: table-header-group; }
   }
+
+  /* ── Мобильный адаптив (max-width: 768px) ── */
+  @media (max-width: 768px) {
+    /* Компактная шапка */
+    header { gap: 12px; padding: 0 12px; }
+    header h1 { font-size: 16px; padding: 10px 0; }
+    .tab-btn { padding: 5px 10px; font-size: 12px; }
+    .search-wrap { min-width: 130px; max-width: 180px; }
+    .search-wrap input { padding: 6px 10px 6px 28px; font-size: 12px; }
+
+    /* Компактный дашборд: 2 колонки */
+    .dashboard {
+      padding: 8px 12px 0;
+      gap: 6px;
+      grid-template-columns: 1fr 1fr;
+    }
+    .dash-tile {
+      padding: 8px 12px;
+      min-width: auto;
+      font-size: 12px;
+    }
+    .dash-num { font-size: 22px; }
+    .dash-label { font-size: 10px; }
+
+    /* Компактные фильтры */
+    .adv-toolbar {
+      padding: 8px 12px;
+      gap: 8px;
+      grid-template-columns: 1fr;
+    }
+    .adv-filters {
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .adv-filters .toolbar-select { font-size: 12px; padding: 5px 8px; }
+    .adv-label { font-size: 12px; }
+    .btn-reset-adv { padding: 5px 8px; font-size: 11px; }
+
+    /* Действия */
+    .adv-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .adv-actions .btn-secondary,
+    .adv-actions .btn-primary {
+      padding: 6px 10px;
+      font-size: 12px;
+      flex: 0 1 auto;
+    }
+
+    /* Таблица: карточный режим */
+    .table-wrap { padding: 10px; overflow-x: auto; }
+    table { box-shadow: 0 1px 2px rgba(0,0,0,.05); border-radius: 4px; }
+
+    thead { display: none; }
+
+    tbody tr.item-row {
+      display: block;
+      padding: 10px;
+      margin-bottom: 8px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    tbody tr.item-row td {
+      display: block;
+      padding: 4px 0 !important;
+      border: none !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+
+    td.num { display: none; }
+    td.prio { display: block; width: 100%; padding: 6px 0 !important; }
+    td.ticket { font-size: 12px; color: #6366f1; margin-bottom: 2px; }
+    td.topic { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+    td.status { font-size: 12px; margin-bottom: 4px; }
+    td.due { font-size: 12px; margin-bottom: 4px; }
+    td.executor { font-size: 12px; margin-bottom: 4px; }
+
+    .state-select { width: 100%; margin-bottom: 4px; }
+
+    .exec-chip { font-size: 11px; padding: 1px 6px; }
+
+    tbody tr.qs-row { display: none; }
+
+    /* Справочники */
+    .ref-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .ref-card {
+      padding: 12px;
+    }
+
+    .ref-list { font-size: 13px; }
+    .ref-item { padding: 8px 10px; margin-bottom: 6px; }
+    .ref-add-form { gap: 6px; }
+    .ref-add-form input,
+    .ref-add-form select { font-size: 12px; }
+  }
+
+  /* ── Очень узкие экраны (max-width: 480px) ── */
+  @media (max-width: 480px) {
+    header { padding: 0 8px; gap: 8px; }
+    header h1 { font-size: 14px; }
+    .logo-text { font-size: 12px; }
+    .search-wrap { min-width: 100px; max-width: 120px; }
+    .search-wrap input { font-size: 11px; padding: 5px 8px 5px 26px; }
+
+    .tab-btn { padding: 4px 8px; font-size: 11px; }
+
+    .adv-toolbar { padding: 6px 8px; gap: 6px; }
+    .adv-filters {
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .dashboard {
+      gap: 4px;
+      padding: 6px 8px 0;
+    }
+    .dash-tile { padding: 6px 8px; min-width: 70px; }
+    .dash-num { font-size: 18px; }
+    .dash-label { font-size: 9px; }
+
+    .adv-actions .btn-secondary,
+    .adv-actions .btn-primary {
+      font-size: 11px;
+      padding: 5px 8px;
+    }
+
+    .table-wrap { padding: 8px; }
+
+    tbody tr.item-row {
+      padding: 8px;
+      margin-bottom: 6px;
+      border-radius: 4px;
+    }
+
+    td.prio { padding: 4px 0 !important; }
+    td.ticket, td.topic, td.status, td.due, td.executor {
+      font-size: 11px !important;
+      padding: 3px 0 !important;
+    }
+
+    .ref-item { padding: 6px 8px; font-size: 12px; }
+  }
 </style>
 </head>
 <body>
