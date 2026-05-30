@@ -224,6 +224,26 @@ def create_department(body: DepartmentCreate):
     return row_to_dict(row)
 
 
+@app.put("/api/departments/{dept_id}")
+def update_department(dept_id: int, body: DepartmentCreate):
+    """Переименовывает отдел. 404 — если не найден, 409 — если имя занято другим."""
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name required")
+    conn = get_db()
+    if not conn.execute("SELECT id FROM departments WHERE id = ?", (dept_id,)).fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Not found")
+    if conn.execute("SELECT id FROM departments WHERE name = ? AND id != ?", (name, dept_id)).fetchone():
+        conn.close()
+        raise HTTPException(status_code=409, detail="Already exists")
+    conn.execute("UPDATE departments SET name = ? WHERE id = ?", (name, dept_id))
+    conn.commit()
+    row = conn.execute("SELECT * FROM departments WHERE id = ?", (dept_id,)).fetchone()
+    conn.close()
+    return row_to_dict(row)
+
+
 @app.delete("/api/departments/{dept_id}", status_code=204)
 def delete_department(dept_id: int):
     """Удаляет отдел; у исполнителей этого отдела department_id становится NULL."""
@@ -275,6 +295,31 @@ def create_executor(body: ExecutorCreate):
         FROM executors e LEFT JOIN departments d ON e.department_id = d.id
         WHERE e.id = ?
     """, (cur.lastrowid,)).fetchone()
+    conn.close()
+    return row_to_dict(row)
+
+
+@app.put("/api/executors/{executor_id}")
+def update_executor(executor_id: int, body: ExecutorCreate):
+    """Меняет имя и/или отдел исполнителя. 404 — если нет, 409 — если имя занято другим."""
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name required")
+    conn = get_db()
+    if not conn.execute("SELECT id FROM executors WHERE id = ?", (executor_id,)).fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Not found")
+    if conn.execute("SELECT id FROM executors WHERE name = ? AND id != ?", (name, executor_id)).fetchone():
+        conn.close()
+        raise HTTPException(status_code=409, detail="Already exists")
+    conn.execute("UPDATE executors SET name = ?, department_id = ? WHERE id = ?",
+                 (name, body.department_id, executor_id))
+    conn.commit()
+    row = conn.execute("""
+        SELECT e.id, e.name, e.department_id, d.name AS department_name
+        FROM executors e LEFT JOIN departments d ON e.department_id = d.id
+        WHERE e.id = ?
+    """, (executor_id,)).fetchone()
     conn.close()
     return row_to_dict(row)
 
@@ -331,7 +376,16 @@ def list_items(state: Optional[str] = None):
             "SELECT * FROM statuses WHERE item_id = ? ORDER BY status_date DESC, id DESC LIMIT 3",
             (item["id"],),
         ).fetchall()
-        d["recent_statuses"] = [row_to_dict(r) for r in recent]
+        recent_list = [row_to_dict(r) for r in recent]
+        d["recent_statuses"] = recent_list
+        # Общее число статусов — для счётчика «+N» на главном экране.
+        # Доп. запрос нужен только когда статусов может быть больше отданных трёх.
+        if len(recent_list) < 3:
+            d["status_count"] = len(recent_list)
+        else:
+            d["status_count"] = conn.execute(
+                "SELECT COUNT(*) AS c FROM statuses WHERE item_id = ?", (item["id"],)
+            ).fetchone()["c"]
         result.append(d)
     conn.close()
     return result
