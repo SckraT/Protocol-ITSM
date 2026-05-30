@@ -83,10 +83,12 @@
   .dash-tile:hover { box-shadow: 0 3px 10px rgba(0,0,0,.12); transform: translateY(-1px); }
   .dash-tile--grey  { border-left-color: #94a3b8; }
   .dash-tile--blue  { border-left-color: #2563eb; }
+  .dash-tile--yellow { border-left-color: #f59e0b; }
   .dash-tile--red   { border-left-color: #ef4444; }
   .dash-tile--green { border-left-color: #059669; }
   .dash-tile--grey.active  { background: #f1f5f9; }
   .dash-tile--blue.active  { background: #dbeafe; }
+  .dash-tile--yellow.active { background: #fef3c7; }
   .dash-tile--red.active   { background: #fee2e2; }
   .dash-tile--green.active { background: #dcfce7; }
   .dash-num {
@@ -531,7 +533,7 @@
         <span class="dash-num" id="dash-inprogress">—</span>
         <span class="dash-label">В работе</span>
       </button>
-      <button class="dash-tile dash-tile--red" data-filter="postponed">
+      <button class="dash-tile dash-tile--yellow" data-filter="postponed">
         <span class="dash-num" id="dash-postponed">—</span>
         <span class="dash-label">Отложено</span>
       </button>
