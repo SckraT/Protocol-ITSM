@@ -30,14 +30,14 @@
   }
   header h1 { font-size: 17px; font-weight: 600; display: flex; align-items: center; padding: 14px 0; white-space: nowrap; }
 
-  .tab-nav { display: flex; gap: 2px; align-items: stretch; }
+  .tab-nav { display: flex; gap: 4px; align-items: center; }
   .tab-btn {
-    padding: 0 18px; background: none; border: none; color: #8b9ab8;
+    padding: 6px 14px; background: none; border: none; border-radius: 6px; color: #8b9ab8;
     font-size: 13px; font-weight: 500; cursor: pointer;
-    border-bottom: 3px solid transparent; transition: color .15s, border-color .15s; white-space: nowrap;
+    transition: color .15s, background .15s; white-space: nowrap;
   }
-  .tab-btn:hover { color: #c9d1e8; }
-  .tab-btn.active { color: #fff; border-bottom-color: #2563eb; }
+  .tab-btn:hover { color: #c9d1e8; background: rgba(255,255,255,.07); }
+  .tab-btn.active { color: #fff; background: rgba(255,255,255,.12); }
 
   /* ── Logo ── */
   .logo { display: flex; align-items: center; gap: 10px; padding: 10px 0; flex-shrink: 0; }
