@@ -736,6 +736,80 @@ const priorityConfig = {
 };
 const prioritySortOrder = { high: 0, medium: 1, low: 2, '': 3 };
 
+// ── Оптимистичный UI (сохранение состояния DOM) ──────────────────────────────
+
+let scrollPos = 0;
+let openAccordions = new Set();
+
+function saveDOMState() {
+  const tableWrap = document.querySelector('.table-wrap');
+  scrollPos = tableWrap ? tableWrap.scrollLeft : 0;
+  const tbody = document.getElementById('tableBody');
+  openAccordions.clear();
+  tbody.querySelectorAll('tr.item-row').forEach(tr => {
+    const accordion = tr.querySelector('.status-toggle.open');
+    if (accordion) {
+      const itemId = parseInt(tr.dataset.itemId);
+      openAccordions.add(itemId);
+    }
+  });
+}
+
+function restoreDOMState() {
+  const tbody = document.getElementById('tableBody');
+  tbody.querySelectorAll('tr.item-row').forEach(tr => {
+    const itemId = parseInt(tr.dataset.itemId);
+    if (openAccordions.has(itemId)) {
+      const accordion = tr.querySelector('.status-toggle');
+      if (accordion) {
+        accordion.classList.add('open');
+        const statusExtra = tr.querySelector('.status-extra');
+        if (statusExtra) statusExtra.style.display = 'block';
+      }
+    }
+  });
+  const tableWrap = document.querySelector('.table-wrap');
+  if (tableWrap) tableWrap.scrollLeft = scrollPos;
+}
+
+function updateDashboardCounts() {
+  const c = { in_progress: 0, postponed: 0, closed: 0 };
+  allItems.forEach(i => c[i.state]++);
+  document.getElementById('dash-all').textContent        = allItems.length;
+  document.getElementById('dash-inprogress').textContent = c.in_progress;
+  document.getElementById('dash-postponed').textContent  = c.postponed;
+  document.getElementById('dash-closed').textContent     = c.closed;
+}
+
+function findRowInTable(itemId) {
+  return document.querySelector(`tr.item-row[data-item-id="${itemId}"]`);
+}
+
+function optimisticDeleteRow(itemId) {
+  const row = findRowInTable(itemId);
+  if (row) {
+    row.style.opacity = '0.5';
+    row.style.pointerEvents = 'none';
+  }
+}
+
+function restoreDeletedRow(itemId) {
+  const row = findRowInTable(itemId);
+  if (row) {
+    row.style.opacity = '1';
+    row.style.pointerEvents = 'auto';
+  }
+}
+
+function removeRowFromTable(itemId) {
+  const row = findRowInTable(itemId);
+  if (row) {
+    row.style.transition = 'opacity 0.2s';
+    row.style.opacity = '0';
+    setTimeout(() => row.remove(), 200);
+  }
+}
+
 // ── Загрузка ───────────────────────────────────────────────────────────────
 
 async function loadAll() {
@@ -1074,6 +1148,8 @@ document.querySelectorAll('thead th.sortable').forEach(th => {
 // ── Рендер таблицы ─────────────────────────────────────────────────────────
 
 function render() {
+  saveDOMState();
+
   document.querySelectorAll('thead th.sortable').forEach(th => {
     th.classList.remove('sort-asc', 'sort-desc');
     if (th.dataset.col === sortState.col)
@@ -1085,6 +1161,7 @@ function render() {
 
   if (!items.length) {
     tbody.innerHTML = '<tr><td colspan="9" class="empty">Нет пунктов</td></tr>';
+    openAccordions.clear();
     return;
   }
 
@@ -1120,7 +1197,7 @@ function render() {
       : '<div class="status-empty">Нет статусов</div>';
 
     return `
-      <tr class="item-row">
+      <tr class="item-row" data-item-id="${item.id}">
         <td class="num">${idx + 1}</td>
         <td class="prio">${pcfg ? `<span class="prio-badge ${pcfg.cls}" title="Приоритет: ${pcfg.label}" aria-label="Приоритет: ${pcfg.label}">${pcfg.letter}</span>` : ''}</td>
         <td class="ticket">${item.ticket ? esc(item.ticket) : '—'}</td>
@@ -1153,6 +1230,8 @@ function render() {
         </td>
       </tr>`;
   }).join('');
+
+  restoreDOMState();
 }
 
 // ── Аккордеон статусов ───────────────────────────────────────────────────────
@@ -1177,10 +1256,22 @@ function stateOptions(current) {
 }
 
 async function changeState(id, value) {
+  const item = allItems.find(i => i.id === id);
+  if (!item) return;
+
+  const oldState = item.state;
+  item.state = value;
+
+  // Обновляем счётчики
+  updateDashboardCounts();
+
   try {
     await apiFetch(`${API}/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ state: value }) });
-    loadAll();
   } catch (e) {
+    // Откатываем при ошибке
+    item.state = oldState;
+    updateDashboardCounts();
+    render();
     toast('Не удалось сменить состояние', 'error');
   }
 }
@@ -1216,12 +1307,29 @@ async function saveQs(id) {
   const date = document.getElementById(`qs-date-${id}`)?.value || null;
   const note = document.getElementById(`qs-note-${id}`)?.value.trim() || null;
   if (!note) { closeQs(); return; }
+
+  const item = allItems.find(i => i.id === id);
+  if (!item) return;
+
+  // Оптимистичное добавление статуса
+  const newStatus = { status_date: date, status_note: note };
+  const oldRecent = item.recent_statuses ? [...item.recent_statuses] : [];
+
+  // Обновляем в памяти (статус добавляется в начало)
+  item.recent_statuses = [newStatus, ...oldRecent].slice(0, 3);
+  item.status_count = (item.status_count ?? 0) + 1;
+
+  closeQs();
+  render();
+
   try {
     await apiFetch(`${API}/${id}/statuses`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status_date: date, status_note: note }) });
-    closeQs();
-    loadAll();
     toast('Статус добавлен', 'success');
   } catch (e) {
+    // Откатываем при ошибке
+    item.recent_statuses = oldRecent;
+    item.status_count = (item.status_count ?? 0) - 1;
+    render();
     toast('Не удалось сохранить статус', 'error');
   }
 }
@@ -1424,12 +1532,29 @@ itemForm.addEventListener('submit', async e => {
 async function deleteItem(id) {
   const item = allItems.find(i => i.id === id);
   if (!await confirmDialog(`Удалить задачу?\n\n${item?.topic || ''}`)) return;
+
+  // Оптимистичное обновление: сохраняем состояние для отката
+  saveDOMState();
+  const itemIndex = allItems.findIndex(i => i.id === id);
+  const deletedItem = allItems[itemIndex];
+
+  // Удаляем из DOM с анимацией
+  removeRowFromTable(id);
+
+  // Удаляем из allItems
+  allItems.splice(itemIndex, 1);
+
+  // Обновляем счётчики
+  updateDashboardCounts();
+
   try {
     await apiFetch(`${API}/${id}`, { method: 'DELETE' });
-    loadAll();
     toast('Задача удалена', 'success');
   } catch (e) {
-    toast('Не удалось удалить задачу', 'error');
+    // Откатываем при ошибке
+    allItems.splice(itemIndex, 0, deletedItem);
+    render();
+    toast('Не удалось удалить задачу. Повтор…', 'error');
   }
 }
 
@@ -1473,7 +1598,6 @@ async function deleteStatus(statusId) {
   try {
     await apiFetch(`/api/statuses/${statusId}`, { method: 'DELETE' });
     await renderHistory();
-    loadAll();
     toast('Статус удалён', 'success');
   } catch (e) {
     toast('Не удалось удалить статус', 'error');
@@ -1489,7 +1613,6 @@ document.getElementById('btnAddStatus').addEventListener('click', async () => {
     document.getElementById('newStatusNote').value = '';
     document.getElementById('newStatusDate').value = today();
     await renderHistory();
-    loadAll();
     toast('Статус добавлен', 'success');
   } catch (e) {
     toast('Не удалось добавить статус', 'error');
