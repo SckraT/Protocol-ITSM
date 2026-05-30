@@ -531,9 +531,9 @@
         <span class="dash-num" id="dash-inprogress">—</span>
         <span class="dash-label">В работе</span>
       </button>
-      <button class="dash-tile dash-tile--red" data-filter="overdue">
-        <span class="dash-num" id="dash-overdue">—</span>
-        <span class="dash-label">Просрочено</span>
+      <button class="dash-tile dash-tile--red" data-filter="postponed">
+        <span class="dash-num" id="dash-postponed">—</span>
+        <span class="dash-label">Отложено</span>
       </button>
       <button class="dash-tile dash-tile--green" data-filter="closed">
         <span class="dash-num" id="dash-closed">—</span>
@@ -776,15 +776,11 @@ async function loadRefs() {
 
 function updateCounts() {
   const c = { in_progress: 0, postponed: 0, closed: 0 };
-  let overdue = 0;
-  allItems.forEach(i => {
-    c[i.state]++;
-    if (dueInfo(i.due_date, i.state).cls === 'overdue') overdue++;
-  });
+  allItems.forEach(i => c[i.state]++);
 
   document.getElementById('dash-all').textContent        = allItems.length;
   document.getElementById('dash-inprogress').textContent = c.in_progress;
-  document.getElementById('dash-overdue').textContent    = overdue;
+  document.getElementById('dash-postponed').textContent  = c.postponed;
   document.getElementById('dash-closed').textContent     = c.closed;
 }
 
@@ -906,14 +902,7 @@ document.getElementById('searchInput').addEventListener('input', e => {
 });
 
 function applyFilters(items) {
-  let r;
-  if (currentFilter === 'overdue') {
-    r = items.filter(i => dueInfo(i.due_date, i.state).cls === 'overdue');
-  } else if (currentFilter) {
-    r = items.filter(i => i.state === currentFilter);
-  } else {
-    r = items;
-  }
+  let r = currentFilter ? items.filter(i => i.state === currentFilter) : items;
   if (searchQuery) {
     const q = searchQuery;
     r = r.filter(i =>
@@ -1799,7 +1788,7 @@ document.addEventListener('keydown', e => {
 // ── Печать ─────────────────────────────────────────────────────────────────
 
 window.addEventListener('beforeprint', () => {
-  const filterLabels = { in_progress: 'В работе', overdue: 'Просрочено', closed: 'Закрыто', postponed: 'Отложено' };
+  const filterLabels = { in_progress: 'В работе', postponed: 'Отложено', closed: 'Закрыто' };
   const filterLabel  = currentFilter ? (filterLabels[currentFilter] || currentFilter) : 'Все задачи';
   const now = new Date().toLocaleDateString('ru', { day: '2-digit', month: 'long', year: 'numeric' });
   document.getElementById('printMeta').textContent = `${filterLabel} · ${now}`;
