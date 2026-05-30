@@ -211,24 +211,29 @@
   .empty { text-align: center; padding: 48px; color: #aaa; }
   .count { font-size: 12px; color: #888; margin-left: 4px; }
 
-  /* ── Расширенные фильтры ── */
+  /* ── Фильтры + дашборд + действия ── */
   .adv-toolbar {
-    padding: 0 24px 10px;
-    display: flex;
-    gap: 8px;
+    padding: 8px 24px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    flex-wrap: wrap;
+    gap: 16px;
   }
+  .adv-filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .adv-label { font-size: 12px; color: #9ca3af; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
   .toolbar-select {
     padding: 6px 26px 6px 10px; border: 1px solid #d1d5db; border-radius: 6px;
     background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%236b7280' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") no-repeat right 8px center;
     font-size: 13px; font-family: inherit; cursor: pointer; color: #374151;
-    appearance: none; -webkit-appearance: none; transition: border-color .15s; max-width: 200px;
+    appearance: none; -webkit-appearance: none; transition: border-color .15s; max-width: 180px;
   }
   .toolbar-select:focus { outline: none; border-color: #2563eb; }
   .toolbar-select.filtered { border-color: #6366f1; background-color: #f5f3ff; color: #4338ca; }
-  .adv-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  /* Тайлы внутри тулбара — компактнее, без внешних отступов */
+  .adv-toolbar .dashboard { padding: 0; display: flex; gap: 6px; justify-content: center; flex-wrap: nowrap; }
+  .adv-toolbar .dash-tile { min-width: 90px; padding: 8px 14px; }
+  .adv-toolbar .dash-num  { font-size: 20px; }
+  .adv-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
 
   .btn-reset-adv {
     padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px;
@@ -427,42 +432,45 @@
 
 <!-- ── Tab: Протокол ── -->
 <div id="tab-protocol">
-  <!-- ── Dashboard / фильтр по состоянию ── -->
-  <div class="dashboard" id="dashboard">
-    <button class="dash-tile dash-tile--grey active" data-filter="">
-      <span class="dash-num" id="dash-all">—</span>
-      <span class="dash-label">Все</span>
-    </button>
-    <button class="dash-tile dash-tile--blue" data-filter="in_progress">
-      <span class="dash-num" id="dash-inprogress">—</span>
-      <span class="dash-label">В работе</span>
-    </button>
-    <button class="dash-tile dash-tile--red" data-filter="overdue">
-      <span class="dash-num" id="dash-overdue">—</span>
-      <span class="dash-label">Просрочено</span>
-    </button>
-    <button class="dash-tile dash-tile--green" data-filter="closed">
-      <span class="dash-num" id="dash-closed">—</span>
-      <span class="dash-label">Закрыто</span>
-    </button>
-  </div>
-
-  <!-- ── Фильтры + действия ── -->
+  <!-- ── Фильтры · Дашборд · Действия ── -->
   <div class="adv-toolbar" id="advToolbar">
-    <span class="adv-label">Фильтр:</span>
-    <select class="toolbar-select" id="filterDeptSel">
-      <option value="">Все отделы</option>
-    </select>
-    <select class="toolbar-select" id="filterExecSel">
-      <option value="">Все исполнители</option>
-    </select>
-    <select class="toolbar-select" id="filterPrioSel">
-      <option value="">Все приоритеты</option>
-      <option value="high">🔴 Высокий</option>
-      <option value="medium">🟡 Средний</option>
-      <option value="low">🔵 Низкий</option>
-    </select>
-    <button class="btn-reset-adv" id="btnResetAdv" style="display:none">✕ Сбросить фильтры</button>
+    <!-- Левая колонка: фильтры -->
+    <div class="adv-filters">
+      <span class="adv-label">Фильтр:</span>
+      <select class="toolbar-select" id="filterDeptSel">
+        <option value="">Все отделы</option>
+      </select>
+      <select class="toolbar-select" id="filterExecSel">
+        <option value="">Все исполнители</option>
+      </select>
+      <select class="toolbar-select" id="filterPrioSel">
+        <option value="">Все приоритеты</option>
+        <option value="high">🔴 Высокий</option>
+        <option value="medium">🟡 Средний</option>
+        <option value="low">🔵 Низкий</option>
+      </select>
+      <button class="btn-reset-adv" id="btnResetAdv" style="display:none">✕ Сбросить</button>
+    </div>
+    <!-- Центральная колонка: дашборд -->
+    <div class="dashboard" id="dashboard">
+      <button class="dash-tile dash-tile--grey active" data-filter="">
+        <span class="dash-num" id="dash-all">—</span>
+        <span class="dash-label">Все</span>
+      </button>
+      <button class="dash-tile dash-tile--blue" data-filter="in_progress">
+        <span class="dash-num" id="dash-inprogress">—</span>
+        <span class="dash-label">В работе</span>
+      </button>
+      <button class="dash-tile dash-tile--red" data-filter="overdue">
+        <span class="dash-num" id="dash-overdue">—</span>
+        <span class="dash-label">Просрочено</span>
+      </button>
+      <button class="dash-tile dash-tile--green" data-filter="closed">
+        <span class="dash-num" id="dash-closed">—</span>
+        <span class="dash-label">Закрыто</span>
+      </button>
+    </div>
+    <!-- Правая колонка: действия -->
     <div class="adv-actions">
       <button class="btn-secondary" id="btnExport">⬇ Экспорт</button>
       <button class="btn-secondary" id="btnImport">⬆ Импорт</button>
