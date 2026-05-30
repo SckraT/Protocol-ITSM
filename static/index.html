@@ -661,6 +661,41 @@
   :root[data-theme="dark"] .spinner { border-color: #3a4256; border-top-color: #3b82f6; }
   :root[data-theme="dark"] .state-row td { color: #64748b; }
 
+  /* ── Пагинация ── */
+  .pagination-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 24px 16px;
+    font-size: 13px; color: #6b7280;
+    flex-wrap: wrap;
+  }
+  .pagination-info { margin-right: auto; white-space: nowrap; }
+  .pagination-pages { display: flex; gap: 4px; align-items: center; }
+  .page-btn {
+    min-width: 32px; height: 32px; padding: 0 8px;
+    border: 1px solid #e5e7eb; border-radius: 6px;
+    background: #fff; color: #374151;
+    font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, border-color .15s, color .15s;
+    font-family: inherit;
+  }
+  .page-btn:hover:not(:disabled):not(.active) { background: #f3f4f6; border-color: #d1d5db; }
+  .page-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
+  .page-btn:disabled { opacity: .35; cursor: default; }
+  .page-btn.page-dots { border: none; background: none; cursor: default; color: #9ca3af; min-width: 24px; padding: 0; }
+  .page-size-sel {
+    padding: 5px 24px 5px 8px; border: 1px solid #e5e7eb; border-radius: 6px;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%236b7280' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") no-repeat right 7px center;
+    font-size: 12px; font-family: inherit; cursor: pointer; color: #374151;
+    appearance: none; -webkit-appearance: none;
+  }
+
+  :root[data-theme="dark"] .page-btn { background: #1e2433; border-color: #3a4256; color: #cbd5e1; }
+  :root[data-theme="dark"] .page-btn:hover:not(:disabled):not(.active) { background: #262d45; border-color: #4a5568; }
+  :root[data-theme="dark"] .page-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+  :root[data-theme="dark"] .page-btn.page-dots { background: none; border: none; color: #64748b; }
+  :root[data-theme="dark"] .page-size-sel { background-color: #1e2433; border-color: #3a4256; color: #cbd5e1; }
+
   /* ── Заголовок только для печати ── */
   .print-only { display: none; }
 
@@ -674,7 +709,7 @@
     .print-meta  { font-size: 9pt; color: #555; margin-top: 3pt; }
 
     /* Скрываем UI-оболочку */
-    header, .adv-toolbar, .overlay, .toast-wrap { display: none !important; }
+    header, .adv-toolbar, .overlay, .toast-wrap, .pagination-bar { display: none !important; }
 
     /* Сброс фона страницы */
     body { background: #fff; font-size: 10pt; color: #000; }
@@ -794,6 +829,9 @@
     .bulk-bar { padding: 8px 12px; gap: 6px; flex-wrap: wrap; }
     .btn-bulk { font-size: 11px; padding: 4px 8px; }
     .bulk-state-select { font-size: 11px; padding: 3px 8px; }
+    .pagination-bar { padding: 8px 12px; gap: 6px; flex-wrap: wrap; }
+    .page-btn { min-width: 28px; height: 28px; font-size: 12px; }
+    .page-size-sel { font-size: 11px; }
     td.ticket { font-size: 12px; color: #6366f1; margin-bottom: 2px; }
     td.topic { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
     td.status { font-size: 12px; margin-bottom: 4px; }
@@ -976,6 +1014,21 @@
     <span class="bulk-sep">|</span>
     <button class="btn-bulk danger" id="btnBulkDelete">🗑 Удалить</button>
     <button class="btn-bulk-clear" id="btnBulkClear" title="Снять выделение">✕</button>
+  </div>
+
+  <div id="paginationBar" class="pagination-bar" style="display:none">
+    <span class="pagination-info" id="paginationInfo"></span>
+    <div class="pagination-pages" id="paginationPages"></div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#9ca3af">
+      По
+      <select class="page-size-sel" id="pageSizeSel" onchange="setPageSize(+this.value)">
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
+        <option value="50">50</option>
+        <option value="0">Все</option>
+      </select>
+      на стр.
+    </label>
   </div>
 
   <div class="table-wrap">
@@ -1176,6 +1229,8 @@ let filterExec     = '';
 let filterPriority = '';
 let historyItemId  = null;
 let sortState      = { col: null, dir: 'asc' };
+let currentPage    = 1;
+let pageSize       = 20;
 let openQsId       = null;
 let editingDeptId  = null;   // id отдела в режиме редактирования (или null)
 let editingExecId  = null;   // id исполнителя в режиме редактирования (или null)
@@ -1215,11 +1270,13 @@ function updateBulkBar() {
 function updateSelectAllCheckbox() {
   const cb = document.getElementById('selectAllCb');
   if (!cb) return;
-  const visible = applySort(applyFilters(allItems));
-  if (!visible.length) { cb.checked = false; cb.indeterminate = false; return; }
-  const selCount = visible.filter(i => selectedItems.has(i.id)).length;
-  cb.indeterminate = selCount > 0 && selCount < visible.length;
-  cb.checked = selCount === visible.length;
+  const all = applySort(applyFilters(allItems));
+  const ps  = pageSize > 0 ? pageSize : all.length;
+  const pageItems = all.slice((currentPage - 1) * ps, currentPage * ps);
+  if (!pageItems.length) { cb.checked = false; cb.indeterminate = false; return; }
+  const selCount = pageItems.filter(i => selectedItems.has(i.id)).length;
+  cb.indeterminate = selCount > 0 && selCount < pageItems.length;
+  cb.checked = selCount === pageItems.length;
 }
 
 function clearSelection() {
@@ -1231,12 +1288,12 @@ function clearSelection() {
   if (allCb) { allCb.checked = false; allCb.indeterminate = false; }
 }
 
-// «Выбрать все» / снять со всех видимых строк
-document.addEventListener('DOMContentLoaded', () => {});
-// Подключаем после рендера (через делегирование)
+// «Выбрать все» — выбирает только текущую страницу
 document.getElementById('selectAllCb').addEventListener('change', function () {
-  const visible = applySort(applyFilters(allItems));
-  visible.forEach(i => {
+  const all = applySort(applyFilters(allItems));
+  const ps  = pageSize > 0 ? pageSize : all.length;
+  const pageItems = all.slice((currentPage - 1) * ps, currentPage * ps);
+  pageItems.forEach(i => {
     if (this.checked) selectedItems.add(i.id); else selectedItems.delete(i.id);
   });
   render();
@@ -1500,6 +1557,18 @@ function plural(n, forms) {
   return forms[2];
 }
 
+/** Считает рабочие дни (пн–пт) между двумя датами включительно. */
+function countWorkdays(from, to) {
+  let count = 0;
+  const cur = new Date(from);
+  while (cur <= to) {
+    const day = cur.getDay();
+    if (day !== 0 && day !== 6) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
 /** Возвращает {cls, rel} для срока относительно сегодняшней даты. */
 function dueInfo(dueDate, state) {
   if (!dueDate || state === 'closed') return { cls: '', rel: '' };
@@ -1507,10 +1576,28 @@ function dueInfo(dueDate, state) {
   const [y, m, d] = dueDate.split('-').map(Number);
   const due  = new Date(y, m - 1, d);
   const diff = Math.round((due - t) / 86400000);
-  if (diff < 0)   return { cls: 'overdue', rel: `просрочено на ${-diff} ${plural(-diff, ['день','дня','дней'])}` };
+
+  if (diff < 0) {
+    const cal = -diff;
+    const yesterday = new Date(t.getTime() - 86400000);
+    const wd = countWorkdays(due, yesterday);
+    // Показываем рабочие дни если период ≥ 3 дней и они отличаются от календарных
+    const wdNote = (cal >= 3 && wd !== cal)
+      ? ` (${wd} ${plural(wd, ['рабочий','рабочих','рабочих'])})`
+      : '';
+    return { cls: 'overdue', rel: `просрочено на ${cal} ${plural(cal, ['день','дня','дней'])}${wdNote}` };
+  }
+
   if (diff === 0) return { cls: 'soon', rel: 'сегодня' };
-  if (diff <= 3)  return { cls: 'soon', rel: `через ${diff} ${plural(diff, ['день','дня','дней'])}` };
-  return { cls: '', rel: '' };
+  if (diff === 1) return { cls: 'soon', rel: 'завтра' };
+  if (diff <= 7)  return { cls: 'soon', rel: `через ${diff} ${plural(diff, ['день','дня','дней'])}` };
+
+  if (diff <= 30) {
+    const weeks = Math.round(diff / 7);
+    return { cls: '', rel: `через ${weeks} ${plural(weeks, ['нед.','нед.','нед.'])}` };
+  }
+  const months = Math.round(diff / 30);
+  return { cls: '', rel: `через ${months} ${plural(months, ['мес.','мес.','мес.'])}` };
 }
 
 // ── Табы ───────────────────────────────────────────────────────────────────
@@ -1533,12 +1620,14 @@ document.getElementById('dashboard').addEventListener('click', e => {
   document.querySelectorAll('.dash-tile').forEach(t => t.classList.remove('active'));
   tile.classList.add('active');
   currentFilter = tile.dataset.filter;
+  currentPage = 1;
   saveViewState();
   render();
 });
 
 document.getElementById('searchInput').addEventListener('input', e => {
   searchQuery = e.target.value.toLowerCase().trim();
+  currentPage = 1;
   saveViewState();
   render();
 });
@@ -1607,7 +1696,7 @@ function saveViewState() {
   try {
     localStorage.setItem(VIEW_KEY, JSON.stringify({
       currentFilter, searchQuery, sortState,
-      filterDept, filterExec, filterPriority,
+      filterDept, filterExec, filterPriority, pageSize,
     }));
   } catch (_) {}
 }
@@ -1623,12 +1712,15 @@ function loadViewState() {
     if (s.filterDept     !== undefined) filterDept     = s.filterDept;
     if (s.filterExec     !== undefined) filterExec     = s.filterExec;
     if (s.filterPriority !== undefined) filterPriority = s.filterPriority;
+    if (s.pageSize       !== undefined) pageSize       = s.pageSize;
   } catch (_) {}
 }
 
 /** Отражает восстановленное состояние в DOM. Вызывать после populateAdvFilters(). */
 function applyViewStateToDOM() {
   document.getElementById('searchInput').value = searchQuery;
+  const ps = document.getElementById('pageSizeSel');
+  if (ps) ps.value = String(pageSize);
 
   // Активный тайл дашборда
   document.querySelectorAll('.dash-tile').forEach(t => {
@@ -1667,6 +1759,7 @@ document.getElementById('filterDeptSel').addEventListener('change', e => {
   filterDept = e.target.value;
   e.target.classList.toggle('filtered', !!filterDept);
   updateResetBtn();
+  currentPage = 1;
   saveViewState();
   render();
 });
@@ -1675,6 +1768,7 @@ document.getElementById('filterExecSel').addEventListener('change', e => {
   filterExec = e.target.value;
   e.target.classList.toggle('filtered', !!filterExec);
   updateResetBtn();
+  currentPage = 1;
   saveViewState();
   render();
 });
@@ -1683,6 +1777,7 @@ document.getElementById('filterPrioSel').addEventListener('change', e => {
   filterPriority = e.target.value;
   e.target.classList.toggle('filtered', !!filterPriority);
   updateResetBtn();
+  currentPage = 1;
   saveViewState();
   render();
 });
@@ -1695,6 +1790,7 @@ document.getElementById('btnResetAdv').addEventListener('click', () => {
     el.classList.remove('filtered');
   });
   updateResetBtn();
+  currentPage = 1;
   saveViewState();
   render();
 });
@@ -1706,10 +1802,69 @@ document.querySelectorAll('thead th.sortable').forEach(th => {
     const col = th.dataset.col;
     sortState.dir = sortState.col === col ? (sortState.dir === 'asc' ? 'desc' : 'asc') : 'asc';
     sortState.col = col;
+    currentPage = 1;
     saveViewState();
     render();
   });
 });
+
+// ── Пагинация ──────────────────────────────────────────────────────────────
+
+function goToPage(n) {
+  currentPage = n;
+  clearSelection();
+  render();
+  // Прокрутить таблицу вверх
+  document.querySelector('.table-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function setPageSize(n) {
+  pageSize = n;
+  currentPage = 1;
+  clearSelection();
+  saveViewState();
+  render();
+}
+
+function renderPagination(total, totalPages) {
+  const bar   = document.getElementById('paginationBar');
+  const info  = document.getElementById('paginationInfo');
+  const pages = document.getElementById('paginationPages');
+  if (!bar) return;
+
+  // Скрываем, если всё умещается на одной странице и pageSize не ограничен
+  const ps = pageSize > 0 ? pageSize : total;
+  bar.style.display = (total === 0 || (pageSize > 0 && total <= pageSize)) ? 'none' : 'flex';
+  if (bar.style.display === 'none') return;
+
+  const start = (currentPage - 1) * ps + 1;
+  const end   = Math.min(currentPage * ps, total);
+  info.textContent = `${start}–${end} из ${total}`;
+
+  // Кнопки страниц
+  const btns = [];
+  const addBtn = (label, page, extra = '') => {
+    btns.push(`<button class="page-btn${extra}" ${page === null ? 'disabled' : `onclick="goToPage(${page})"`}>${label}</button>`);
+  };
+  const addDots = () => btns.push('<span class="page-btn page-dots">…</span>');
+
+  addBtn('‹', currentPage > 1 ? currentPage - 1 : null);
+
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) addBtn(i, i, i === currentPage ? ' active' : '');
+  } else {
+    addBtn(1, 1, currentPage === 1 ? ' active' : '');
+    if (currentPage > 3) addDots();
+    const lo = Math.max(2, currentPage - 1);
+    const hi = Math.min(totalPages - 1, currentPage + 1);
+    for (let i = lo; i <= hi; i++) addBtn(i, i, i === currentPage ? ' active' : '');
+    if (currentPage < totalPages - 2) addDots();
+    addBtn(totalPages, totalPages, currentPage === totalPages ? ' active' : '');
+  }
+
+  addBtn('›', currentPage < totalPages ? currentPage + 1 : null);
+  pages.innerHTML = btns.join('');
+}
 
 // ── Рендер таблицы ─────────────────────────────────────────────────────────
 
@@ -1722,7 +1877,18 @@ function render() {
       th.classList.add(sortState.dir === 'asc' ? 'sort-asc' : 'sort-desc');
   });
 
-  const items = applySort(applyFilters(allItems));
+  const allFiltered = applySort(applyFilters(allItems));
+  const total       = allFiltered.length;
+
+  // Нарезка по страницам
+  const ps        = pageSize > 0 ? pageSize : total;
+  const totalPages = ps > 0 ? Math.max(1, Math.ceil(total / ps)) : 1;
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * ps;
+  const items = ps > 0 ? allFiltered.slice(start, start + ps) : allFiltered;
+
+  renderPagination(total, totalPages);
+
   const tbody = document.getElementById('tableBody');
 
   if (!items.length) {
@@ -1732,6 +1898,7 @@ function render() {
   }
 
   tbody.innerHTML = items.map((item, idx) => {
+    const globalIdx = start + idx;
     const recent = item.recent_statuses || [];
     const due    = dueInfo(item.due_date, item.state);
     const pcfg   = priorityConfig[item.priority] || null;
@@ -1766,7 +1933,7 @@ function render() {
     return `
       <tr class="item-row${isSelected ? ' selected' : ''}" data-item-id="${item.id}">
         <td class="sel"><input type="checkbox" class="row-checkbox" data-id="${item.id}" ${isSelected ? 'checked' : ''} onchange="toggleRowSelect(${item.id}, this.checked)"></td>
-        <td class="num">${idx + 1}</td>
+        <td class="num">${globalIdx + 1}</td>
         <td class="prio">${pcfg ? `<span class="prio-badge ${pcfg.cls}" title="Приоритет: ${pcfg.label}" aria-label="Приоритет: ${pcfg.label}">${pcfg.letter}</span>` : ''}</td>
         <td class="ticket">${item.ticket ? esc(item.ticket) : '—'}</td>
         <td class="topic">${esc(item.topic)}</td>
