@@ -1991,6 +1991,24 @@ function stateOptions(current) {
   ).join('');
 }
 
+/** Точечно обновляет в строке цвет селекта состояния и ячейку срока. */
+function updateRowStateVisuals(item) {
+  const row = document.querySelector(`tr[data-item-id="${item.id}"]`);
+  if (!row) return;
+
+  // Цвет селекта состояния
+  const sel = row.querySelector('.state-select');
+  if (sel) sel.className = `state-select ${stateBadge[item.state]}`;
+
+  // Пересчёт срока (для closed просрочка не показывается)
+  const dueCell = row.querySelector('td.due');
+  if (dueCell) {
+    const due = dueInfo(item.due_date, item.state);
+    dueCell.className = `due ${due.cls}`.trim();
+    dueCell.innerHTML = `${item.due_date ? fmtDate(item.due_date) : '—'}${due.rel ? `<br><span class="due-rel">${due.rel}</span>` : ''}`;
+  }
+}
+
 async function changeState(id, value) {
   const item = allItems.find(i => i.id === id);
   if (!item) return;
@@ -1998,7 +2016,8 @@ async function changeState(id, value) {
   const oldState = item.state;
   item.state = value;
 
-  // Обновляем счётчики
+  // Точечно обновляем цвет состояния, срок и счётчики
+  updateRowStateVisuals(item);
   updateDashboardCounts();
 
   try {
@@ -2006,6 +2025,7 @@ async function changeState(id, value) {
   } catch (e) {
     // Откатываем при ошибке
     item.state = oldState;
+    updateRowStateVisuals(item);
     updateDashboardCounts();
     render();
     toast('Не удалось сменить состояние', 'error');
