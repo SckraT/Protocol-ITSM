@@ -1996,9 +1996,12 @@ function updateRowStateVisuals(item) {
   const row = document.querySelector(`tr[data-item-id="${item.id}"]`);
   if (!row) return;
 
-  // Цвет селекта состояния
+  // Селект состояния: и выбранная опция, и цвет
   const sel = row.querySelector('.state-select');
-  if (sel) sel.className = `state-select ${stateBadge[item.state]}`;
+  if (sel) {
+    sel.value = item.state;
+    sel.className = `state-select ${stateBadge[item.state]}`;
+  }
 
   // Пересчёт срока (для closed просрочка не показывается)
   const dueCell = row.querySelector('td.due');
