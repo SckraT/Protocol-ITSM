@@ -265,6 +265,57 @@
   .icon-btn.del:hover { background: #fee2e2; }
   .icon-btn.qs-toggle { font-size: 13px; font-weight: 700; color: #6366f1; }
 
+  /* ── Bulk-операции ── */
+  td.sel { width: 32px; padding: 10px 6px; text-align: center; vertical-align: middle; }
+  th.sel { width: 32px; padding: 10px 6px; text-align: center; }
+  .row-checkbox, .select-all-cb {
+    width: 15px; height: 15px; cursor: pointer;
+    accent-color: #2563eb;
+  }
+  tbody tr.item-row.selected { background: #eff6ff; }
+  tbody tr.item-row.selected:hover { background: #dbeafe; }
+
+  /* Панель bulk-действий (появляется при выделении) */
+  .bulk-bar {
+    display: none; align-items: center; gap: 10px;
+    padding: 8px 24px;
+    background: #1e3a8a;
+    color: #fff;
+    font-size: 13px;
+  }
+  .bulk-bar.visible { display: flex; }
+  .bulk-count { font-weight: 600; margin-right: 4px; }
+  .bulk-sep { opacity: .3; }
+  .btn-bulk {
+    padding: 5px 12px;
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 5px;
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-bulk:hover { background: rgba(255,255,255,.25); }
+  .btn-bulk.danger { background: rgba(239,68,68,.3); border-color: rgba(239,68,68,.5); }
+  .btn-bulk.danger:hover { background: rgba(239,68,68,.5); }
+  .btn-bulk-clear {
+    margin-left: auto;
+    padding: 4px 8px;
+    background: none; border: none;
+    color: rgba(255,255,255,.6);
+    cursor: pointer; font-size: 16px; line-height: 1;
+  }
+  .btn-bulk-clear:hover { color: #fff; }
+
+  /* Выпадающий список в bulk-баре */
+  .bulk-state-select {
+    padding: 4px 10px; border: 1px solid rgba(255,255,255,.25); border-radius: 5px;
+    background: rgba(255,255,255,.15); color: #fff; font-size: 12px; cursor: pointer;
+    appearance: none; -webkit-appearance: none;
+  }
+  .bulk-state-select option { background: #1e3a8a; color: #fff; }
+
   /* ── Quick status inline ── */
   .qs-form { display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: #f0f4ff; border-top: 1px solid #c7d2fe; }
   .qs-form input[type="date"], .qs-form input[type="text"] { padding: 5px 8px; border: 1px solid #c7d2fe; border-radius: 5px; font-size: 13px; font-family: inherit; background: #fff; }
@@ -507,8 +558,9 @@
     }
     td { padding: 6pt 8pt; font-size: 9.5pt; }
 
-    /* Скрываем колонку действий */
-    td.actions, thead th:last-child { display: none !important; }
+    /* Скрываем колонку действий и чекбоксы */
+    td.actions, td.sel, thead th:last-child, thead th.sel { display: none !important; }
+    .bulk-bar { display: none !important; }
 
     /* Скрываем быстрый статус и кнопки */
     .qs-row, .icon-btn, .status-link, .status-toggle { display: none !important; }
@@ -605,7 +657,12 @@
     }
 
     td.num { display: none; }
+    td.sel { display: block; width: 100%; padding: 6px 0 !important; border-bottom: none !important; }
     td.prio { display: block; width: 100%; padding: 6px 0 !important; }
+
+    .bulk-bar { padding: 8px 12px; gap: 6px; flex-wrap: wrap; }
+    .btn-bulk { font-size: 11px; padding: 4px 8px; }
+    .bulk-state-select { font-size: 11px; padding: 3px 8px; }
     td.ticket { font-size: 12px; color: #6366f1; margin-bottom: 2px; }
     td.topic { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
     td.status { font-size: 12px; margin-bottom: 4px; }
@@ -773,10 +830,28 @@
     </div>
   </div>
 
+  <!-- Панель массовых операций -->
+  <div class="bulk-bar" id="bulkBar">
+    <span><span class="bulk-count" id="bulkCount">0</span> выбрано</span>
+    <span class="bulk-sep">|</span>
+    <span>Состояние:</span>
+    <select class="bulk-state-select" id="bulkStateSelect">
+      <option value="">— выбрать —</option>
+      <option value="in_progress">В работе</option>
+      <option value="postponed">Отложено</option>
+      <option value="closed">Закрыто</option>
+    </select>
+    <button class="btn-bulk" id="btnBulkState">Применить</button>
+    <span class="bulk-sep">|</span>
+    <button class="btn-bulk danger" id="btnBulkDelete">🗑 Удалить</button>
+    <button class="btn-bulk-clear" id="btnBulkClear" title="Снять выделение">✕</button>
+  </div>
+
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
+          <th class="sel"><input type="checkbox" class="select-all-cb" id="selectAllCb" title="Выбрать все"></th>
           <th>#</th>
           <th title="Приоритет">●</th>
           <th class="sortable" data-col="ticket">Тикет <span class="sort-arrow"></span></th>
@@ -985,6 +1060,116 @@ const priorityConfig = {
 };
 const prioritySortOrder = { high: 0, medium: 1, low: 2, '': 3 };
 
+// ── Bulk-операции ──────────────────────────────────────────────────────────────
+
+let selectedItems = new Set();
+
+function toggleRowSelect(id, checked) {
+  if (checked) selectedItems.add(id); else selectedItems.delete(id);
+  const row = findRowInTable(id);
+  if (row) row.classList.toggle('selected', checked);
+  updateBulkBar();
+  updateSelectAllCheckbox();
+}
+
+function updateBulkBar() {
+  const bar   = document.getElementById('bulkBar');
+  const count = document.getElementById('bulkCount');
+  if (!bar || !count) return;
+  const n = selectedItems.size;
+  bar.classList.toggle('visible', n > 0);
+  count.textContent = n;
+}
+
+function updateSelectAllCheckbox() {
+  const cb = document.getElementById('selectAllCb');
+  if (!cb) return;
+  const visible = applySort(applyFilters(allItems));
+  if (!visible.length) { cb.checked = false; cb.indeterminate = false; return; }
+  const selCount = visible.filter(i => selectedItems.has(i.id)).length;
+  cb.indeterminate = selCount > 0 && selCount < visible.length;
+  cb.checked = selCount === visible.length;
+}
+
+function clearSelection() {
+  selectedItems.clear();
+  document.querySelectorAll('tr.item-row.selected').forEach(r => r.classList.remove('selected'));
+  document.querySelectorAll('.row-checkbox').forEach(cb => { cb.checked = false; });
+  updateBulkBar();
+  const allCb = document.getElementById('selectAllCb');
+  if (allCb) { allCb.checked = false; allCb.indeterminate = false; }
+}
+
+// «Выбрать все» / снять со всех видимых строк
+document.addEventListener('DOMContentLoaded', () => {});
+// Подключаем после рендера (через делегирование)
+document.getElementById('selectAllCb').addEventListener('change', function () {
+  const visible = applySort(applyFilters(allItems));
+  visible.forEach(i => {
+    if (this.checked) selectedItems.add(i.id); else selectedItems.delete(i.id);
+  });
+  render();
+});
+
+document.getElementById('btnBulkClear').addEventListener('click', () => {
+  clearSelection();
+});
+
+document.getElementById('btnBulkState').addEventListener('click', async () => {
+  const state = document.getElementById('bulkStateSelect').value;
+  if (!state || !selectedItems.size) return;
+  const ids = [...selectedItems];
+  const label = stateLabel[state] || state;
+
+  // Оптимистичное обновление
+  ids.forEach(id => {
+    const item = allItems.find(i => i.id === id);
+    if (item) item.state = state;
+  });
+  updateDashboardCounts();
+  render();
+  clearSelection();
+  document.getElementById('bulkStateSelect').value = '';
+
+  try {
+    await Promise.all(ids.map(id =>
+      apiFetch(`${API}/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ state }) })
+    ));
+    toast(`${ids.length} задач переведено в «${label}»`, 'success');
+  } catch (e) {
+    // При ошибке перегружаем данные с сервера
+    loadAll();
+    toast('Не удалось обновить часть задач', 'error');
+  }
+});
+
+document.getElementById('btnBulkDelete').addEventListener('click', async () => {
+  const n = selectedItems.size;
+  if (!n) return;
+  if (!await confirmDialog(`Удалить ${n} задач${n === 1 ? 'у' : n < 5 ? 'и' : ''}?`)) return;
+  const ids = [...selectedItems];
+
+  // Оптимистичное удаление
+  ids.forEach(id => {
+    removeRowFromTable(id);
+    const idx = allItems.findIndex(i => i.id === id);
+    if (idx !== -1) allItems.splice(idx, 1);
+  });
+  selectedItems.clear();
+  updateDashboardCounts();
+  updateBulkBar();
+
+  try {
+    await Promise.all(ids.map(id => apiFetch(`${API}/${id}`, { method: 'DELETE' })));
+    toast(`${n} задач удалено`, 'success');
+  } catch (e) {
+    loadAll();
+    toast('Не удалось удалить часть задач', 'error');
+  }
+});
+
+// Escape снимает выделение — встраиваем в общий обработчик ниже
+
 // ── Оптимистичный UI (сохранение состояния DOM) ──────────────────────────────
 
 let scrollPos = 0;
@@ -1053,9 +1238,10 @@ function restoreDeletedRow(itemId) {
 function removeRowFromTable(itemId) {
   const row = findRowInTable(itemId);
   if (row) {
+    const qsRow = document.getElementById(`qs-${itemId}`);
     row.style.transition = 'opacity 0.2s';
     row.style.opacity = '0';
-    setTimeout(() => row.remove(), 200);
+    setTimeout(() => { row.remove(); qsRow?.remove(); }, 200);
   }
 }
 
@@ -1409,7 +1595,7 @@ function render() {
   const tbody = document.getElementById('tableBody');
 
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">Нет пунктов</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="empty">Нет пунктов</td></tr>';
     openAccordions.clear();
     return;
   }
@@ -1445,8 +1631,10 @@ function render() {
          </div>` : ''}`
       : '<div class="status-empty">Нет статусов</div>';
 
+    const isSelected = selectedItems.has(item.id);
     return `
-      <tr class="item-row" data-item-id="${item.id}">
+      <tr class="item-row${isSelected ? ' selected' : ''}" data-item-id="${item.id}">
+        <td class="sel"><input type="checkbox" class="row-checkbox" data-id="${item.id}" ${isSelected ? 'checked' : ''} onchange="toggleRowSelect(${item.id}, this.checked)"></td>
         <td class="num">${idx + 1}</td>
         <td class="prio">${pcfg ? `<span class="prio-badge ${pcfg.cls}" title="Приоритет: ${pcfg.label}" aria-label="Приоритет: ${pcfg.label}">${pcfg.letter}</span>` : ''}</td>
         <td class="ticket">${item.ticket ? esc(item.ticket) : '—'}</td>
@@ -1469,7 +1657,7 @@ function render() {
         </td>
       </tr>
       <tr class="qs-row" id="qs-${item.id}" style="display:none">
-        <td colspan="9">
+        <td colspan="10">
           <div class="qs-form">
             <input type="date" id="qs-date-${item.id}">
             <input type="text" id="qs-note-${item.id}" placeholder="Описание статуса…" onkeydown="qsKeydown(event,${item.id})">
@@ -1481,6 +1669,7 @@ function render() {
   }).join('');
 
   restoreDOMState();
+  updateSelectAllCheckbox();
 }
 
 // ── Аккордеон статусов ───────────────────────────────────────────────────────
@@ -1790,11 +1979,13 @@ async function deleteItem(id) {
   // Удаляем из DOM с анимацией
   removeRowFromTable(id);
 
-  // Удаляем из allItems
+  // Удаляем из allItems и из выделения
   allItems.splice(itemIndex, 1);
+  selectedItems.delete(id);
 
   // Обновляем счётчики
   updateDashboardCounts();
+  updateBulkBar();
 
   try {
     await apiFetch(`${API}/${id}`, { method: 'DELETE' });
@@ -2146,11 +2337,12 @@ document.getElementById('importFile').addEventListener('change', async e => {
 // ── Глобальные клавиши ───────────────────────────────────────────────────────
 
 document.addEventListener('keydown', e => {
-  // Escape закрывает открытую модалку (сверху вниз по приоритету).
+  // Escape закрывает открытую модалку (сверху вниз по приоритету), затем снимает выделение.
   if (e.key === 'Escape') {
     if (confirmOverlay.classList.contains('open')) { closeConfirm(false);   return; }
     if (historyOverlay.classList.contains('open')) { closeHistoryModal();   return; }
     if (itemOverlay.classList.contains('open'))    { closeItemModal();      return; }
+    if (selectedItems.size)                        { clearSelection();      return; }
   }
   // Enter / Space активируют элементы с role="button" (бейдж состояния, ссылка истории).
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[role="button"]')) {
