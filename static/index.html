@@ -5,20 +5,71 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Протокол совещания</title>
 <style>
+  /* ── CSS переменные для светлой/тёмной темы ── */
+  :root {
+    /* Светлая тема (по умолчанию) */
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-body: #f0f2f5;
+    --text-primary: #ffffff;
+    --text-secondary: #8b9ab8;
+    --text-body: #1a1a2e;
+    --accent: #2563eb;
+    --accent-light: #3b82f6;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --success: #059669;
+    --border: #e5e7eb;
+    --border-light: #f0f2f5;
+    --table-bg: #ffffff;
+    --table-hover: #f7f8fc;
+    --input-bg: rgba(255, 255, 255, .1);
+    --input-border: rgba(255, 255, 255, .2);
+    --blue-light: #dbeafe;
+    --yellow-light: #fef3c7;
+    --green-light: #d1fae5;
+    --red-light: #fee2e2;
+  }
+
+  :root[data-theme="dark"] {
+    /* Тёмная тема */
+    --bg-primary: #0f0f1e;
+    --bg-secondary: #1a1a2e;
+    --bg-body: #0a0a12;
+    --text-primary: #f5f5f5;
+    --text-secondary: #b0b8cc;
+    --text-body: #e5e7eb;
+    --accent: #3b82f6;
+    --accent-light: #60a5fa;
+    --danger: #f87171;
+    --warning: #fbbf24;
+    --success: #34d399;
+    --border: #374151;
+    --border-light: #1f2937;
+    --table-bg: #1a1a2e;
+    --table-hover: #262d45;
+    --input-bg: rgba(255, 255, 255, .05);
+    --input-border: rgba(255, 255, 255, .1);
+    --blue-light: #1e3a8a;
+    --yellow-light: #78350f;
+    --green-light: #064e3b;
+    --red-light: #7f1d1d;
+  }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size: 14px;
-    background: #f0f2f5;
-    color: #1a1a2e;
+    background: var(--bg-body);
+    color: var(--text-body);
     min-height: 100vh;
   }
 
   /* ── Header & tabs ── */
   header {
-    background: #1a1a2e;
-    color: #fff;
+    background: var(--bg-primary);
+    color: var(--text-primary);
     padding: 0 24px;
     display: flex;
     align-items: stretch;
@@ -32,28 +83,43 @@
 
   .tab-nav { display: flex; gap: 4px; align-items: center; }
   .tab-btn {
-    padding: 6px 14px; background: none; border: none; border-radius: 6px; color: #8b9ab8;
+    padding: 6px 14px; background: none; border: none; border-radius: 6px; color: var(--text-secondary);
     font-size: 13px; font-weight: 500; cursor: pointer;
     transition: color .15s, background .15s; white-space: nowrap;
   }
-  .tab-btn:hover { color: #c9d1e8; background: rgba(255,255,255,.07); }
-  .tab-btn.active { color: #fff; background: rgba(255,255,255,.12); }
+  .tab-btn:hover { color: var(--text-primary); background: rgba(255,255,255,.07); }
+  .tab-btn.active { color: var(--text-primary); background: rgba(255,255,255,.12); }
 
   /* ── Logo ── */
   .logo { display: flex; align-items: center; gap: 10px; padding: 10px 0; flex-shrink: 0; }
-  .logo-text { display: flex; flex-direction: column; font-size: 15px; font-weight: 700; color: #fff; line-height: 1.2; letter-spacing: -.2px; }
+  .logo-text { display: flex; flex-direction: column; font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.2; letter-spacing: -.2px; }
 
   /* ── Toolbar ── */
 
   .search-wrap { position: relative; min-width: 160px; max-width: 280px; margin-left: auto; align-self: center; }
   .search-wrap input {
     width: 100%; padding: 7px 10px 7px 32px;
-    border: 1px solid rgba(255,255,255,.2); border-radius: 6px; font-size: 13px;
-    background: rgba(255,255,255,.1); color: #fff; transition: background .15s, border-color .15s;
+    border: 1px solid var(--input-border); border-radius: 6px; font-size: 13px;
+    background: var(--input-bg); color: var(--text-primary); transition: background .15s, border-color .15s;
   }
-  .search-wrap input::placeholder { color: #8b9ab8; }
-  .search-wrap input:focus { outline: none; background: rgba(255,255,255,.16); border-color: #3b82f6; }
+  .search-wrap input::placeholder { color: var(--text-secondary); }
+  .search-wrap input:focus { outline: none; background: rgba(255,255,255,.16); border-color: var(--accent); }
   .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; display: flex; }
+
+  /* ── Theme toggle ── */
+  .theme-toggle {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px;
+    padding: 0;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 16px;
+    transition: background .15s, border-color .15s;
+  }
+  .theme-toggle:hover { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.3); }
 
   .btn-secondary { padding: 7px 14px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; white-space: nowrap; transition: background .15s; }
   .btn-secondary:hover { background: #f3f4f6; }
@@ -111,22 +177,22 @@
   /* ── Protocol table ── */
   .table-wrap { padding: 0 24px 24px; overflow-x: auto; }
 
-  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  table { width: 100%; border-collapse: collapse; background: var(--table-bg); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
   thead th {
-    background: #1a1a2e; color: #c9d1e8; font-weight: 500; font-size: 12px;
+    background: var(--bg-primary); color: var(--text-secondary); font-weight: 500; font-size: 12px;
     text-transform: uppercase; letter-spacing: .5px; padding: 10px 12px;
     text-align: left; white-space: nowrap; user-select: none;
   }
   thead th.sortable { cursor: pointer; }
-  thead th.sortable:hover { color: #fff; }
+  thead th.sortable:hover { color: var(--text-primary); }
   thead th .sort-arrow { margin-left: 4px; font-size: 10px; opacity: .5; }
   thead th.sort-asc  .sort-arrow::after { content: '▲'; opacity: 1; }
   thead th.sort-desc .sort-arrow::after { content: '▼'; opacity: 1; }
   thead th:not(.sort-asc):not(.sort-desc) .sort-arrow::after { content: '↕'; }
 
-  tbody tr.item-row { border-bottom: 1px solid #f0f2f5; transition: background .1s; }
-  tbody tr.item-row:hover { background: #f7f8fc; }
-  tbody tr.qs-row td { padding: 0; border-bottom: 1px solid #f0f2f5; }
+  tbody tr.item-row { border-bottom: 1px solid var(--border-light); transition: background .1s; }
+  tbody tr.item-row:hover { background: var(--table-hover); }
+  tbody tr.qs-row td { padding: 0; border-bottom: 1px solid var(--border-light); }
 
   td { padding: 10px 12px; vertical-align: top; }
   td.num  { color: #888; font-size: 12px; width: 36px; text-align: center; }
@@ -646,6 +712,9 @@
     </span>
     <input type="text" id="searchInput" placeholder="Поиск…">
   </div>
+  <button class="theme-toggle" id="themeToggle" title="Переключить тему" aria-label="Переключить тему">
+    <span class="theme-icon">🌙</span>
+  </button>
 </header>
 
 <!-- ── Заголовок для печати (скрыт на экране) ── -->
@@ -861,6 +930,34 @@
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
+// ── Тёмная тема ─────────────────────────────────────────────────────────────
+
+function initTheme() {
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme = savedTheme === 'auto' ? (prefersDark ? 'dark' : 'light') : savedTheme;
+  setTheme(theme);
+}
+
+function setTheme(theme) {
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').querySelector('.theme-icon').textContent = '☀️';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    document.getElementById('themeToggle').querySelector('.theme-icon').textContent = '🌙';
+  }
+  localStorage.setItem('theme', theme);
+}
+
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  setTheme(isDark ? 'light' : 'dark');
+}
+
+document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+initTheme();
+
 const API = '/api/items';
 
 let allItems       = [];
