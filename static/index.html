@@ -2273,16 +2273,43 @@ itemForm.addEventListener('submit', async e => {
 
   try {
     if (id) {
+      // ── Редактирование: оптимистично обновляем модель, не перезапрашиваем всё ──
       await apiFetch(`${API}/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (statusNote) {
         await apiFetch(`${API}/${id}/statuses`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status_date: statusDate, status_note: statusNote }) });
       }
+
+      // Обновляем запись в памяти
+      const item = allItems.find(i => i.id === parseInt(id));
+      if (item) {
+        item.topic    = payload.topic;
+        item.ticket   = payload.ticket;
+        item.priority = payload.priority;
+        item.state    = payload.state;
+        item.due_date = payload.due_date;
+        // Резолвим ID исполнителей в полные объекты из справочника
+        item.executors = payload.executors
+          .map(eid => allExecutors.find(e => e.id === eid))
+          .filter(Boolean);
+        // Если добавили статус — обновляем сводку
+        if (statusNote) {
+          const ns = { status_date: statusDate, status_note: statusNote };
+          item.recent_statuses = [ns, ...(item.recent_statuses || [])].slice(0, 3);
+          item.status_count = (item.status_count ?? 0) + 1;
+        }
+      }
+
+      closeItemModal();
+      updateDashboardCounts();
+      render();
+      toast('Задача обновлена', 'success');
     } else {
+      // ── Создание: нужен ID от сервера, делаем полную перезагрузку ──
       await apiFetch(API, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, status_date: statusDate, status_note: statusNote }) });
+      closeItemModal();
+      loadAll();
+      toast('Задача добавлена', 'success');
     }
-    closeItemModal();
-    loadAll();
-    toast(id ? 'Задача обновлена' : 'Задача добавлена', 'success');
   } catch (err) {
     toast('Не удалось сохранить задачу', 'error');
   }
@@ -2332,6 +2359,15 @@ async function openHistory(id) {
   historyOverlay.classList.add('open');
 }
 
+/** Синхронизирует сводку статусов задачи в основной таблице по полному списку из API. */
+function syncItemStatuses(id, statuses) {
+  const item = allItems.find(i => i.id === id);
+  if (!item) return;
+  // API отдаёт статусы latest-first — та же логика, что у основного списка
+  item.recent_statuses = statuses.slice(0, 3);
+  item.status_count = statuses.length;
+}
+
 async function renderHistory() {
   const list = document.getElementById('historyList');
   let statuses;
@@ -2342,6 +2378,11 @@ async function renderHistory() {
     list.innerHTML = '<div class="history-empty">Не удалось загрузить историю</div>';
     return;
   }
+
+  // Держим сводку статусов в основной таблице актуальной (добавление/удаление в модалке)
+  syncItemStatuses(historyItemId, statuses);
+  render();
+
   if (!statuses.length) { list.innerHTML = '<div class="history-empty">Статусов ещё нет</div>'; return; }
   list.innerHTML = statuses.map((s, idx) => `
     <div class="history-item ${idx === 0 ? 'latest' : ''}">
