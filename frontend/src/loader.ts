@@ -1,7 +1,7 @@
 import { state } from './state';
 import { fetchItems, fetchExecutors, fetchDepartments } from './api';
 import { populateAdvFilters, applyViewStateToDOM } from './filters';
-import { updateDashboardCounts, render } from './render';
+import { updateDashboardCounts, updateTabTitle, render } from './render';
 
 export async function loadAll(): Promise<void> {
   const tbody = document.getElementById('tableBody')!;
@@ -18,6 +18,7 @@ export async function loadAll(): Promise<void> {
     populateAdvFilters();
     applyViewStateToDOM();
     updateDashboardCounts();
+    updateTabTitle();
     render();
   } catch {
     tbody.innerHTML = '<tr class="state-row"><td colspan="9">Не удалось загрузить данные.'

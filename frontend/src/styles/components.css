@@ -77,6 +77,18 @@
 .btn-ref-cancel { background: none; border: none; cursor: pointer; font-size: 18px; color: #9ca3af; line-height: 1; padding: 0 2px; flex-shrink: 0; }
 .btn-ref-cancel:hover { color: #374151; }
 
+/* ── Inline-редактирование темы (dblclick) ── */
+.inline-edit-input {
+  width: 100%; box-sizing: border-box;
+  padding: 2px 6px; border: 1px solid #6366f1; border-radius: 4px;
+  font-size: inherit; font-family: inherit; background: #fff;
+  outline: none; box-shadow: 0 0 0 2px #e0e7ff;
+}
+[data-theme="dark"] .inline-edit-input {
+  background: #1e2a45; color: #e2e8f0; border-color: #818cf8;
+  box-shadow: 0 0 0 2px #312e81;
+}
+
 /* ── Modals ── */
 .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; align-items: center; justify-content: center; }
 .overlay.open { display: flex; }

@@ -1,6 +1,8 @@
 import { state, saveViewState } from './state';
 import { applyFilters, applySort } from './filters';
-import { fmtDate, esc, dueInfo, STATE_LABEL, STATE_BADGE, STATE_ORDER, PRIORITY_CONFIG } from './utils';
+import { fmtDate, esc, today, dueInfo, STATE_LABEL, STATE_BADGE, STATE_ORDER, PRIORITY_CONFIG } from './utils';
+import { updateItem } from './api';
+import { toast } from './toast';
 import type { Item, Executor, ItemState } from './types';
 
 // Колбэки из bulk.ts регистрируются из main.ts, чтобы избежать циклического импорта
@@ -42,6 +44,16 @@ export function restoreDOMState(): void {
   });
   const tableWrap = document.querySelector<HTMLElement>('.table-wrap');
   if (tableWrap) tableWrap.scrollLeft = state.scrollPos;
+}
+
+// ── Tab title ─────────────────────────────────────────────────────────────────
+
+export function updateTabTitle(): void {
+  const t = today();
+  const overdue = state.allItems.filter(
+    i => i.state !== 'closed' && !!i.due_date && i.due_date < t
+  ).length;
+  document.title = overdue > 0 ? `(${overdue}) Протокол совещаний` : 'Протокол совещаний';
 }
 
 // ── Dashboard counts ───────────────────────────────────────────────────────────
@@ -322,4 +334,57 @@ export function render(): void {
 
   restoreDOMState();
   _updateSelectAllCheckbox?.();
+  updateTabTitle();
+}
+
+// ── Inline edit topic ─────────────────────────────────────────────────────────
+
+export function initInlineEdit(): void {
+  document.getElementById('tableBody')!.addEventListener('dblclick', e => {
+    const td = (e.target as Element).closest<HTMLElement>('td.topic');
+    if (!td) return;
+    const row = td.closest<HTMLElement>('tr.item-row');
+    if (!row) return;
+    const itemId = parseInt(row.dataset['itemId']!);
+    startInlineTopic(itemId, td);
+  });
+}
+
+function startInlineTopic(itemId: number, td: HTMLElement): void {
+  if (td.querySelector('input')) return;
+  const original = td.textContent?.trim() ?? '';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = original;
+  input.className = 'inline-edit-input';
+  td.textContent = '';
+  td.appendChild(input);
+  input.focus();
+  input.select();
+
+  let saved = false;
+
+  const cancel = () => { td.textContent = original; };
+  const save = async () => {
+    if (saved) return;
+    saved = true;
+    const newTopic = input.value.trim();
+    if (!newTopic || newTopic === original) { cancel(); return; }
+    td.textContent = newTopic;
+    const item = state.allItems.find(i => i.id === itemId);
+    if (item) item.topic = newTopic;
+    try {
+      await updateItem(itemId, { topic: newTopic });
+    } catch {
+      td.textContent = original;
+      if (item) item.topic = original;
+      toast('Не удалось сохранить тему', 'error');
+    }
+  };
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); save(); }
+    if (e.key === 'Escape') { saved = true; cancel(); }
+  });
+  input.addEventListener('blur', save);
 }

@@ -8,7 +8,7 @@ import { initTheme, toggleTheme } from './theme';
 import { loadAll } from './loader';
 import { loadViewState, saveViewState } from './state';
 import { initFilterEvents } from './filters';
-import { render, goToPage, setPageSize, toggleStatusExtra, registerBulkCallbacks } from './render';
+import { render, goToPage, setPageSize, toggleStatusExtra, registerBulkCallbacks, initInlineEdit } from './render';
 import { initBulkEvents, toggleRowSelect, clearSelection, updateSelectAllCheckbox } from './bulk';
 import { initConfirmEvents, closeConfirm } from './confirm';
 import {
@@ -68,6 +68,7 @@ Object.assign(window, {
 
 // Регистрируем колбэки bulk в render, чтобы избежать циклического импорта
 registerBulkCallbacks(clearSelection, updateSelectAllCheckbox);
+initInlineEdit();
 
 initTheme();
 document.getElementById('themeToggle')!.addEventListener('click', toggleTheme);
