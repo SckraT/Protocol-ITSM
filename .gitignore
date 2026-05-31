@@ -7,6 +7,10 @@ __pycache__/
 .venv/
 venv/
 
+# Node / фронтенд
+node_modules/
+frontend/dist/
+
 # IDE / OS
 .idea/
 .vscode/

@@ -1,0 +1,168 @@
+/* ── CSS-переменные: светлая тема (по умолчанию) ── */
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-body: #f0f2f5;
+  --text-primary: #ffffff;
+  --text-secondary: #8b9ab8;
+  --text-body: #1a1a2e;
+  --accent: #2563eb;
+  --accent-light: #3b82f6;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --success: #059669;
+  --border: #e5e7eb;
+  --border-light: #f0f2f5;
+  --table-bg: #ffffff;
+  --table-hover: #f7f8fc;
+  --input-bg: rgba(255, 255, 255, .1);
+  --input-border: rgba(255, 255, 255, .2);
+  --blue-light: #dbeafe;
+  --yellow-light: #fef3c7;
+  --green-light: #d1fae5;
+  --red-light: #fee2e2;
+}
+
+/* ── Тёмная тема ── */
+:root[data-theme="dark"] {
+  --bg-primary: #1c2845;
+  --bg-secondary: #1c2845;
+  --bg-body: #11182f;
+  --text-primary: #f5f5f5;
+  --text-secondary: #b0b8cc;
+  --text-body: #e5e7eb;
+  --accent: #3b82f6;
+  --accent-light: #60a5fa;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --success: #34d399;
+  --border: #374151;
+  --border-light: #1f2937;
+  --table-bg: #232f4d;
+  --table-hover: #2c3a5e;
+  --input-bg: rgba(255, 255, 255, .05);
+  --input-border: rgba(255, 255, 255, .1);
+  --blue-light: #1e3a8a;
+  --yellow-light: #78350f;
+  --green-light: #064e3b;
+  --red-light: #7f1d1d;
+}
+
+:root[data-theme="dark"] { color-scheme: dark; }
+
+/* ── Тёмная тема: переопределения для элементов с фиксированными цветами ── */
+
+:root[data-theme="dark"] .btn-secondary,
+:root[data-theme="dark"] .btn-cancel,
+:root[data-theme="dark"] .btn-exec-remove {
+  background: #2a3142; border-color: #3a4256; color: #e2e8f0;
+}
+:root[data-theme="dark"] .btn-secondary:hover,
+:root[data-theme="dark"] .btn-cancel:hover { background: #353c4d; }
+:root[data-theme="dark"] .btn-reset-adv { background: #2a3142; border-color: #3a4256; color: #cbd5e1; }
+:root[data-theme="dark"] .btn-reset-adv:hover { background: #3a2330; border-color: #ef4444; color: #f87171; }
+:root[data-theme="dark"] .btn-exec-remove:hover { background: #3a2030; border-color: #ef4444; color: #f87171; }
+:root[data-theme="dark"] .btn-qs-cancel:hover,
+:root[data-theme="dark"] .btn-ref-cancel:hover { color: #e2e8f0; }
+
+:root[data-theme="dark"] .toolbar-select { background-color: #161b27; border-color: #3a4256; color: #e2e8f0; }
+:root[data-theme="dark"] .toolbar-select.filtered { background-color: #1e2a52; border-color: #4f46e5; color: #c7d2fe; }
+
+:root[data-theme="dark"] .dash-tile { background: #232f4d; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+:root[data-theme="dark"] .dash-num { color: #f1f5f9; }
+:root[data-theme="dark"] .dash-tile--grey.active   { background: #2a3142; }
+:root[data-theme="dark"] .dash-tile--blue.active   { background: #1e3a5f; }
+:root[data-theme="dark"] .dash-tile--yellow.active { background: #4a3a16; }
+:root[data-theme="dark"] .dash-tile--red.active    { background: #4a2020; }
+:root[data-theme="dark"] .dash-tile--green.active  { background: #16412e; }
+
+:root[data-theme="dark"] td.num { color: #94a3b8; }
+:root[data-theme="dark"] .status-line .s-note { color: #cbd5e1; }
+:root[data-theme="dark"] .status-line--sub .s-note { color: #94a3b8; }
+:root[data-theme="dark"] .status-line .s-date { color: #60a5fa; }
+:root[data-theme="dark"] .status-empty,
+:root[data-theme="dark"] .empty,
+:root[data-theme="dark"] .count { color: #64748b; }
+
+:root[data-theme="dark"] .exec-chip { background: #1e2a52; border-color: #3730a3; color: #c7d2fe; }
+:root[data-theme="dark"] .exec-chip .dept { color: #a5b4fc; }
+
+:root[data-theme="dark"] .status-toggle { background: #1e2a52; border-color: #3730a3; color: #c7d2fe; }
+:root[data-theme="dark"] .status-toggle:hover { background: #283566; }
+:root[data-theme="dark"] .status-extra { border-left-color: #3a4256; }
+:root[data-theme="dark"] .status-link { color: #818cf8; }
+:root[data-theme="dark"] .status-link:hover { color: #a5b4fc; }
+
+:root[data-theme="dark"] .badge-in_progress { background: #1e3a5f; color: #93c5fd; }
+:root[data-theme="dark"] .badge-postponed   { background: #4a3a16; color: #fcd34d; }
+:root[data-theme="dark"] .badge-closed      { background: #16412e; color: #6ee7b7; }
+:root[data-theme="dark"] .state-select option { background: #232f4d; color: #e2e8f0; }
+
+:root[data-theme="dark"] tbody tr.item-row.selected { background: #1e2a4a; }
+:root[data-theme="dark"] tbody tr.item-row.selected:hover { background: #25325a; }
+
+:root[data-theme="dark"] .icon-btn:hover { background: #2a3142; }
+:root[data-theme="dark"] .icon-btn.del:hover { background: #3a2030; }
+
+:root[data-theme="dark"] .qs-form { background: #1a2030; border-top-color: #3a4256; }
+:root[data-theme="dark"] .qs-form input { background: #161b27; border-color: #3a4256; color: #e2e8f0; }
+
+:root[data-theme="dark"] .ref-page h2,
+:root[data-theme="dark"] .ref-card h3 { color: #f1f5f9; }
+:root[data-theme="dark"] .ref-card { background: #232f4d; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+:root[data-theme="dark"] .ref-add-form input,
+:root[data-theme="dark"] .ref-add-form select,
+:root[data-theme="dark"] .ref-edit-form input,
+:root[data-theme="dark"] .ref-edit-form select { background: #161b27; border-color: #3a4256; color: #e2e8f0; }
+:root[data-theme="dark"] .ref-item { background: #262c3a; border-color: #353c4d; }
+:root[data-theme="dark"] .ref-search { background: #161b27; border-color: #3a4256; color: #e2e8f0; }
+:root[data-theme="dark"] .ref-search:focus { background: #232f4d; border-color: #3b82f6; }
+:root[data-theme="dark"] .ref-dept-header { color: #94a3b8; border-bottom-color: #2a3142; }
+:root[data-theme="dark"] .ref-count-badge--active { background: #1e3a5f; color: #93c5fd; border-color: #2563eb; }
+:root[data-theme="dark"] .ref-count-badge--zero { background: #2a3142; color: #64748b; border-color: #3a4256; }
+:root[data-theme="dark"] .ref-item .ref-del { color: #475569; }
+:root[data-theme="dark"] .ref-empty { color: #64748b; }
+
+:root[data-theme="dark"] .modal { background: #232f4d; box-shadow: 0 8px 32px rgba(0,0,0,.5); }
+:root[data-theme="dark"] .modal h2 { color: #f1f5f9; }
+:root[data-theme="dark"] .form-row label,
+:root[data-theme="dark"] .two-col > div label,
+:root[data-theme="dark"] .three-col > div label,
+:root[data-theme="dark"] .executors-label { color: #cbd5e1; }
+:root[data-theme="dark"] .form-row input,
+:root[data-theme="dark"] .form-row select,
+:root[data-theme="dark"] .form-row textarea,
+:root[data-theme="dark"] .two-col > div input,
+:root[data-theme="dark"] .two-col > div select,
+:root[data-theme="dark"] .three-col > div input,
+:root[data-theme="dark"] .three-col > div select,
+:root[data-theme="dark"] .executor-row select { background: #161b27; border-color: #3a4256; color: #e2e8f0; }
+:root[data-theme="dark"] hr.divider { border-top-color: #3a4256; }
+:root[data-theme="dark"] .section-label { color: #94a3b8; }
+:root[data-theme="dark"] .btn-exec-add { border-color: #4f46e5; color: #a5b4fc; }
+:root[data-theme="dark"] .btn-exec-add:hover { background: #1e2a52; }
+:root[data-theme="dark"] .no-executors-hint { color: #64748b; }
+
+:root[data-theme="dark"] .history-topic { background: #262c3a; color: #cbd5e1; border-left-color: #3b82f6; }
+:root[data-theme="dark"] .history-item { background: #262c3a; border-color: #353c4d; }
+:root[data-theme="dark"] .history-item.latest { background: #1e2a4a; border-color: #2563eb; }
+:root[data-theme="dark"] .history-note { color: #cbd5e1; }
+:root[data-theme="dark"] .history-note-empty,
+:root[data-theme="dark"] .history-empty { color: #64748b; }
+:root[data-theme="dark"] .history-date { color: #818cf8; }
+:root[data-theme="dark"] .history-del { color: #475569; }
+
+:root[data-theme="dark"] .add-status-form { background: #1a2030; border-color: #3a4256; }
+:root[data-theme="dark"] .add-status-form h3 { color: #cbd5e1; }
+:root[data-theme="dark"] .add-status-form textarea { background: #161b27; border-color: #3a4256; color: #e2e8f0; }
+
+:root[data-theme="dark"] .confirm-msg { color: #cbd5e1; }
+
+:root[data-theme="dark"] .spinner { border-color: #3a4256; border-top-color: #3b82f6; }
+:root[data-theme="dark"] .state-row td { color: #64748b; }
+
+:root[data-theme="dark"] .page-btn { background: #232f4d; border-color: #3a4256; color: #cbd5e1; }
+:root[data-theme="dark"] .page-btn:hover:not(:disabled):not(.active) { background: #2c3a5e; border-color: #4a5568; }
+:root[data-theme="dark"] .page-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+:root[data-theme="dark"] .page-btn.page-dots { background: none; border: none; color: #64748b; }
+:root[data-theme="dark"] .page-size-sel { background-color: #232f4d; border-color: #3a4256; color: #cbd5e1; }
