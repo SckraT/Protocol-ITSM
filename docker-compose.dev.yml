@@ -1,0 +1,29 @@
+# Dev-режим: бэкенд и фронтенд запускаются раздельно с hot-reload
+# Бэкенд: http://localhost:8000  (API + Swagger)
+# Фронтенд: http://localhost:5173 (Svelte dev server с HMR)
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend   # hot-reload при изменении Python-файлов
+      - ./data:/app/data
+    environment:
+      - DB_PATH=/app/data/protocol.db
+      - DEBUG=true
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8000
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules         # исключаем node_modules из volume
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000/api

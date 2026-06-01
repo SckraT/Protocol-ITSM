@@ -1,24 +1,43 @@
-# ── Stage 1: сборка фронтенда ──────────────────────────────────────────────────
+# Протокол совещания v2.0 — мультистейджевая сборка
+# Stage 1: Сборка фронтенда (Node.js)
+# Stage 2: Python бэкенд со встроенным фронтендом
+
+# ── Stage 1: Frontend build ────────────────────────────────────────────────────
 FROM node:20-alpine AS frontend
-WORKDIR /build
+
+WORKDIR /app/frontend
+
+# Копируем только package.json для кэширования слоя npm ci
 COPY frontend/package*.json ./
-RUN npm ci --silent
-COPY frontend/ .
+RUN npm ci
+
+# Копируем исходники и собираем
+COPY frontend/ ./
 RUN npm run build
 
-# ── Stage 2: Python-приложение ─────────────────────────────────────────────────
+# ── Stage 2: Python backend ────────────────────────────────────────────────────
 FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Копируем бэкенд целиком (app/ нужен setuptools для сборки пакета)
+COPY backend/ ./backend/
 
-COPY app.py .
-COPY --from=frontend /static ./static
+# Установка пакета и зависимостей из pyproject.toml
+RUN pip install --no-cache-dir ./backend
+
+# Копируем собранный фронтенд как статику (Svelte build → dist/)
+COPY --from=frontend /app/frontend/dist ./static/
+
+# Директория для SQLite БД (подключается как volume)
+RUN mkdir -p /app/data
+
+# Переменные окружения
+ENV DB_PATH=/app/data/protocol.db
+ENV PYTHONPATH=/app/backend
 
 VOLUME ["/app/data"]
-
 EXPOSE 8000
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Запуск: миграции → сервер (alembic — консольный скрипт, не python -m)
+CMD ["sh", "-c", "cd /app/backend && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

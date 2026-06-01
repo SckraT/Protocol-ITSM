@@ -20,6 +20,9 @@ import json
 import csv
 import io
 import os
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 DB_PATH = os.environ.get("DB_PATH", "data/protocol.db")
 
@@ -358,6 +361,28 @@ class ItemUpdate(BaseModel):
     executors: Optional[list[int]] = None
 
 
+def serialize_item(conn, item):
+    """Собирает полный словарь задачи: исполнители + 3 последних статуса + счётчик."""
+    d = row_to_dict(item)
+    ej = d.pop("executors_json", None)
+    d["executors"] = resolve_executors(conn, ej)
+    recent = conn.execute(
+        "SELECT * FROM statuses WHERE item_id = ? ORDER BY status_date DESC, id DESC LIMIT 3",
+        (item["id"],),
+    ).fetchall()
+    recent_list = [row_to_dict(r) for r in recent]
+    d["recent_statuses"] = recent_list
+    # Общее число статусов — для счётчика «+N». Доп. запрос нужен,
+    # только когда статусов может быть больше отданных трёх.
+    if len(recent_list) < 3:
+        d["status_count"] = len(recent_list)
+    else:
+        d["status_count"] = conn.execute(
+            "SELECT COUNT(*) AS c FROM statuses WHERE item_id = ?", (item["id"],)
+        ).fetchone()["c"]
+    return d
+
+
 @app.get("/api/items")
 def list_items(state: Optional[str] = None):
     """Список задач с тремя последними статусами и полными данными исполнителей."""
@@ -366,29 +391,22 @@ def list_items(state: Optional[str] = None):
         items = conn.execute("SELECT * FROM items WHERE state = ? ORDER BY id", (state,)).fetchall()
     else:
         items = conn.execute("SELECT * FROM items ORDER BY id").fetchall()
-
-    result = []
-    for item in items:
-        d = row_to_dict(item)
-        ej = d.pop("executors_json", None)
-        d["executors"] = resolve_executors(conn, ej)
-        recent = conn.execute(
-            "SELECT * FROM statuses WHERE item_id = ? ORDER BY status_date DESC, id DESC LIMIT 3",
-            (item["id"],),
-        ).fetchall()
-        recent_list = [row_to_dict(r) for r in recent]
-        d["recent_statuses"] = recent_list
-        # Общее число статусов — для счётчика «+N» на главном экране.
-        # Доп. запрос нужен только когда статусов может быть больше отданных трёх.
-        if len(recent_list) < 3:
-            d["status_count"] = len(recent_list)
-        else:
-            d["status_count"] = conn.execute(
-                "SELECT COUNT(*) AS c FROM statuses WHERE item_id = ?", (item["id"],)
-            ).fetchone()["c"]
-        result.append(d)
+    result = [serialize_item(conn, item) for item in items]
     conn.close()
     return result
+
+
+@app.get("/api/items/{item_id}")
+def get_item(item_id: int):
+    """Одна задача — для просмотра в отдельном окне (?task=ID)."""
+    conn = get_db()
+    item = conn.execute("SELECT * FROM items WHERE id = ?", (item_id,)).fetchone()
+    if not item:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+    d = serialize_item(conn, item)
+    conn.close()
+    return d
 
 
 @app.post("/api/items", status_code=201)
@@ -551,6 +569,134 @@ def export_csv():
         io.BytesIO(content),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=protocol.csv"},
+    )
+
+
+@app.get("/api/export/xlsx")
+def export_xlsx():
+    """Экспортирует задачи в Excel (.xlsx) с форматированием."""
+    conn = get_db()
+    items = conn.execute("SELECT * FROM items ORDER BY id").fetchall()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Протокол"
+
+    # ── Стили ──────────────────────────────────────────────────────────────────
+    thin = Side(style="thin", color="D1D5DB")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    header_font    = Font(bold=True, color="FFFFFF", size=11)
+    header_fill    = PatternFill("solid", fgColor="1E3A5F")
+    header_align   = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    PRIO_FILL = {
+        "high":   PatternFill("solid", fgColor="FEE2E2"),
+        "medium": PatternFill("solid", fgColor="FEF9C3"),
+        "low":    PatternFill("solid", fgColor="DCFCE7"),
+    }
+    STATE_FILL = {
+        "in_progress": PatternFill("solid", fgColor="DBEAFE"),
+        "postponed":   PatternFill("solid", fgColor="F3F4F6"),
+        "closed":      PatternFill("solid", fgColor="D1FAE5"),
+    }
+    STATE_LABEL_RU = {
+        "in_progress": "В работе",
+        "postponed":   "Отложено",
+        "closed":      "Закрыто",
+    }
+    PRIO_LABEL_RU = {
+        "high":   "Высокий",
+        "medium": "Средний",
+        "low":    "Низкий",
+        "":       "",
+    }
+
+    # ── Заголовки ─────────────────────────────────────────────────────────────
+    headers = ["№", "Тема", "Тикет", "Приоритет", "Состояние", "Срок",
+               "Исполнители", "Дата статуса", "Последний статус"]
+    col_widths = [5, 45, 12, 12, 12, 12, 30, 14, 50]
+
+    for col_idx, (hdr, width) in enumerate(zip(headers, col_widths), 1):
+        cell = ws.cell(row=1, column=col_idx, value=hdr)
+        cell.font   = header_font
+        cell.fill   = header_fill
+        cell.alignment = header_align
+        cell.border = border
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+    ws.row_dimensions[1].height = 30
+    ws.freeze_panes = "A2"
+
+    # ── Данные: предзагрузка за 2 запроса вместо N+1 ─────────────────────────
+    # Последний статус для каждой задачи (ROW_NUMBER — SQLite ≥ 3.25)
+    last_statuses: dict = {}
+    for r in conn.execute("""
+        SELECT * FROM (
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY item_id ORDER BY status_date DESC, id DESC
+            ) AS rn FROM statuses
+        ) WHERE rn = 1
+    """).fetchall():
+        last_statuses[r["item_id"]] = row_to_dict(r)
+
+    # Все исполнители с отделами — один запрос
+    all_executors: dict = {}
+    for r in conn.execute("""
+        SELECT e.id, e.name, d.name AS department_name
+        FROM executors e LEFT JOIN departments d ON d.id = e.department_id
+    """).fetchall():
+        all_executors[r["id"]] = row_to_dict(r)
+
+    center = Alignment(horizontal="center", vertical="top")
+    wrap   = Alignment(vertical="top", wrap_text=True)
+    top    = Alignment(vertical="top")
+
+    for row_idx, item in enumerate(items, 2):
+        last = last_statuses.get(item["id"])
+        exec_ids = json.loads(item["executors_json"]) if item["executors_json"] else []
+        execs = [all_executors[eid] for eid in exec_ids if eid in all_executors]
+        exec_str = " | ".join(
+            f"{e['department_name']} — {e['name']}" if e.get("department_name") else e["name"]
+            for e in execs
+        )
+
+        prio  = item["priority"] or ""
+        state = item["state"]
+        row_data = [
+            row_idx - 1,
+            item["topic"],
+            item["ticket"] or "",
+            PRIO_LABEL_RU.get(prio, prio),
+            STATE_LABEL_RU.get(state, state),
+            item["due_date"] or "",
+            exec_str,
+            last["status_date"] or "" if last else "",
+            last["status_note"] or "" if last else "",
+        ]
+
+        for col_idx, value in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.border = border
+            cell.alignment = wrap if col_idx in (2, 7, 9) else (center if col_idx in (1, 3, 4, 5, 6, 8) else top)
+
+        # цвет по приоритету (столбец 4) и состоянию (столбец 5)
+        if prio in PRIO_FILL:
+            ws.cell(row=row_idx, column=4).fill = PRIO_FILL[prio]
+        if state in STATE_FILL:
+            ws.cell(row=row_idx, column=5).fill = STATE_FILL[state]
+
+        ws.row_dimensions[row_idx].height = 20
+
+    conn.close()
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=protocol.xlsx"},
     )
 
 

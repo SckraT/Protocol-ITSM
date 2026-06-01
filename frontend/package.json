@@ -1,18 +1,35 @@
 {
   "name": "protocol-frontend",
-  "version": "1.6.0",
+  "version": "2.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "vite dev",
+    "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint src --ext .ts"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "generate-types": "openapi-typescript http://localhost:8000/api/openapi.json -o src/lib/api/openapi.ts"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
-    "eslint": "^8.57.0",
-    "typescript": "^5.5.0",
+    "@sveltejs/adapter-static": "^3.0.5",
+    "@sveltejs/kit": "^2.8.0",
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@types/node": "^25.9.1",
+    "autoprefixer": "^10.4.20",
+    "openapi-typescript": "^7.4.0",
+    "postcss": "^8.4.49",
+    "prettier": "^3.3.3",
+    "prettier-plugin-svelte": "^3.2.8",
+    "svelte": "^5.2.0",
+    "svelte-check": "^4.0.0",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.0",
     "vite": "^5.4.0"
+  },
+  "dependencies": {
+    "bits-ui": "^1.0.0",
+    "clsx": "^2.1.1",
+    "lucide-svelte": "^0.460.0",
+    "tailwind-merge": "^2.5.4"
   }
 }

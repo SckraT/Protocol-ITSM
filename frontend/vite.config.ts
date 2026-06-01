@@ -1,14 +1,16 @@
+import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  root: '.',
-  build: {
-    outDir: '../static',
-    emptyOutDir: true,
-  },
+  plugins: [sveltekit()],
   server: {
+    port: 5173,
+    // Проксируем API на бэкенд в dev-режиме
     proxy: {
-      '/api': 'http://localhost:8000',
-    },
-  },
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      }
+    }
+  }
 });

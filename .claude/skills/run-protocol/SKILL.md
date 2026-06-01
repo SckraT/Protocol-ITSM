@@ -3,11 +3,11 @@ name: run-protocol
 description: Run Meeting Minutes (Протокол совещания) web app with Docker and verify via smoke tests
 ---
 
-# Run: Meeting Minutes (Протокол совещания)
+# Run: Meeting Minutes (Протокол совещания) v2.0
 
-FastAPI + SQLite web application for meeting minutes management. The app runs in a Docker container on `localhost:8000` with a vanilla JS frontend. All data persists in a SQLite volume.
+FastAPI (async SQLAlchemy ORM) + SQLite backend with a **Svelte 5 SPA** frontend. In production a single Docker container serves both on `localhost:8000` (the built Svelte app is baked into `static/`). Data persists in a SQLite volume. Architecture is layered: `backend/app/` → routers → services → repositories → models.
 
-**Agent path:** Run the smoke-test driver (`.claude/skills/run-protocol/driver.sh`) after launching the Docker container. It verifies the web UI loads, the API endpoints respond, and the database is accessible.
+**Agent path:** Run the smoke-test driver (`.claude/skills/run-protocol/driver.sh`) after launching the Docker container. It verifies `/health`, the SPA loads, and the API endpoints respond with the expected v2 shapes.
 
 ## Prerequisites
 
@@ -30,11 +30,11 @@ cd D:\Protocol  # or wherever the project is
 docker compose build
 ```
 
-This builds the image from `Dockerfile`:
-- Base: Python 3.12-slim
-- Installs FastAPI, SQLite3
-- Mounts `./static/` for the frontend (vanilla JS)
-- Mounts `./data/` volume for persistent database
+This builds the image from `Dockerfile` (multi-stage):
+- Stage 1 (node:20-alpine): builds the Svelte frontend → `frontend/dist`
+- Stage 2 (python:3.12-slim): installs the backend package from `backend/pyproject.toml`, copies the built frontend into `static/`
+- Runs Alembic migrations on startup, then `uvicorn app.main:app`
+- Mounts `./data/` volume for the persistent SQLite database
 
 ## Run (Agent Path)
 
@@ -54,14 +54,17 @@ bash .claude/skills/run-protocol/driver.sh
 ```
 
 The driver checks:
-- Web UI loads at `http://localhost:8000/`
-- `/api/items` returns task list
-- `/api/departments` and `/api/executors` return referencedata
+- `/health` returns `{"status":"ok",...}`
+- SPA loads at `http://localhost:8000/`
+- `/api/items` returns a `PaginatedResponse` (`{items, total, page, page_size}`)
+- `/api/departments` and `/api/executors` return reference data
 - Exit code 0 on all passes
 
 **4. Access the app:**
 - **Web UI:** http://localhost:8000/
 - **API base:** http://localhost:8000/api/
+- **Swagger UI:** http://localhost:8000/api/docs
+- **Health:** http://localhost:8000/health
 
 **Stop the container:**
 ```bash
@@ -118,10 +121,12 @@ curl -o protocol.csv http://localhost:8000/api/export/csv
 
 4. **First startup:** The database initializes on first run (migrations run automatically). This is fast (< 100ms).
 
-5. **Hot reload:** Changes to `static/` (frontend code) are reflected immediately. Changes to `app.py` (backend) require a rebuild:
+5. **Dev mode with hot reload:** For active development use the dev compose file — backend on :8000 (`uvicorn --reload`), Svelte dev server on :5173 (HMR):
    ```bash
-   docker compose up -d --build
+   docker compose -f docker-compose.dev.yml up
    ```
+   Open http://localhost:5173 (frontend) — it proxies/calls the API on :8000.
+   For production-style rebuilds: `docker compose up -d --build`.
 
 ## Troubleshooting
 

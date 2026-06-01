@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Протокол совещания</title>
-  <script type="module" crossorigin src="/assets/index-DVHxox1e.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BlQZ06-0.css">
+  <script type="module" crossorigin src="/assets/index-CF7I7uM_.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-Cc3X966b.css">
 </head>
 <body>
 
@@ -46,6 +46,12 @@
   <div class="print-title">Meeting Minutes</div>
   <div class="print-meta" id="printMeta"></div>
 </div>
+
+<div id="app-layout">
+<aside id="sidePanel" class="side-panel">
+  <div id="sidePanelContent"></div>
+</aside>
+<div id="appMain">
 
 <!-- ── Tab: Протокол ── -->
 <div id="tab-protocol">
@@ -89,10 +95,19 @@
     </div>
     <!-- Правая колонка: действия -->
     <div class="adv-actions">
-      <button class="btn-secondary" id="btnExport">⬇ Экспорт</button>
-      <button class="btn-secondary" id="btnImport">⬆ Импорт</button>
-      <input type="file" id="importFile" accept=".csv" style="display:none">
-      <button class="btn-secondary" onclick="window.print()">🖨 Печать</button>
+      <div class="action-menu" id="actionMenu">
+        <button class="btn-secondary action-menu-toggle" id="btnActionMenu" aria-haspopup="true" aria-expanded="false">
+          Действия ▾
+        </button>
+        <div class="action-menu-dropdown" id="actionMenuDropdown" role="menu">
+          <button class="action-menu-item" id="btnExport">⬇ Экспорт CSV</button>
+          <button class="action-menu-item" id="btnExportXlsx">⬇ Экспорт Excel</button>
+          <button class="action-menu-item" id="btnImport">⬆ Импорт CSV</button>
+          <input type="file" id="importFile" accept=".csv" style="display:none">
+          <hr class="action-menu-divider">
+          <button class="action-menu-item" onclick="window.print()">🖨 Печать</button>
+        </div>
+      </div>
       <button class="btn-primary" id="btnAdd">+ Добавить</button>
     </div>
   </div>
@@ -152,6 +167,7 @@
 
 <!-- ── Tab: Справочники ── -->
 <div id="tab-refs" style="display:none">
+
   <div class="ref-page">
     <h2>Справочники</h2>
     <div class="ref-grid">
@@ -184,92 +200,8 @@
   </div>
 </div>
 
-<!-- ── Item modal ── -->
-<div class="overlay" id="itemOverlay">
-  <div class="modal">
-    <h2 id="modalTitle">Новый пункт</h2>
-    <form id="itemForm" autocomplete="off">
-      <input type="hidden" id="fieldId">
-
-      <div class="form-row">
-        <label>Тема *</label>
-        <textarea id="fieldTopic" rows="2" required></textarea>
-      </div>
-
-      <div class="form-row">
-        <label>Номер тикета</label>
-        <input type="text" id="fieldTicket" placeholder="например, INC0012345">
-      </div>
-
-      <div class="three-col form-row">
-        <div>
-          <label>Состояние</label>
-          <select id="fieldState">
-            <option value="in_progress">В работе</option>
-            <option value="postponed">Отложено</option>
-            <option value="closed">Закрыто</option>
-          </select>
-        </div>
-        <div>
-          <label>Приоритет</label>
-          <select id="fieldPriority">
-            <option value="">Не задан</option>
-            <option value="high">🔴 Высокий</option>
-            <option value="medium">🟡 Средний</option>
-            <option value="low">🔵 Низкий</option>
-          </select>
-        </div>
-        <div>
-          <label>Срок выполнения</label>
-          <input type="date" id="fieldDueDate">
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="executors-label">Исполнители</div>
-        <div id="executorsWrap"></div>
-        <button type="button" class="btn-exec-add" id="btnAddExecutorField">+ добавить исполнителя</button>
-      </div>
-
-      <hr class="divider">
-      <div class="section-label" id="statusSectionLabel">Первый статус</div>
-
-      <div class="two-col form-row">
-        <div>
-          <label>Дата статуса</label>
-          <input type="date" id="fieldStatusDate">
-        </div>
-      </div>
-      <div class="form-row">
-        <label>Описание</label>
-        <textarea id="fieldStatusNote" rows="2"></textarea>
-      </div>
-
-      <div class="modal-actions">
-        <button type="button" class="btn-cancel" id="btnItemCancel">Отмена</button>
-        <button type="submit" class="btn-save">Сохранить</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ── History modal ── -->
-<div class="overlay" id="historyOverlay">
-  <div class="modal history-modal">
-    <h2>История статусов</h2>
-    <div class="history-topic" id="historyTopic"></div>
-    <div class="history-list" id="historyList"></div>
-    <div class="add-status-form">
-      <h3>Добавить статус</h3>
-      <div class="two-col"><div><label>Дата</label><input type="date" id="newStatusDate"></div></div>
-      <textarea id="newStatusNote" placeholder="Описание статуса…"></textarea>
-      <button class="btn-add-status" id="btnAddStatus">Добавить</button>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-cancel" id="btnHistoryClose">Закрыть</button>
-    </div>
-  </div>
-</div>
+</div><!-- #appMain -->
+</div><!-- #app-layout -->
 
 <!-- ── Confirm dialog ── -->
 <div class="overlay" id="confirmOverlay">

@@ -5,7 +5,14 @@
       "name": "protocol-docker",
       "runtimeExecutable": "powershell",
       "runtimeArgs": ["-NoProfile", "-Command", "while ($true) { Start-Sleep 3600 }"],
-      "port": 8000
+      "port": 8000,
+      "autoPort": true
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "port": 5173
     }
   ]
 }

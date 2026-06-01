@@ -3,6 +3,202 @@
 Все значимые изменения проекта фиксируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/).
 
+---
+
+## [2.0.1] — 2026-06-01
+
+### Добавлено
+- Быстрый просмотр истории статусов прямо из таблицы без открытия боковой панели:
+  компонент `StatusPeek.svelte` — иконка с количеством статусов в колонке «Последний статус»,
+  по клику открывается popover с полной историей (подгружается по требованию)
+
+### Исправлено
+- Окно истории статусов теперь следует за своей строкой при прокрутке (пересчёт позиции
+  на scroll/resize, `capture:true` для вложенного скролла таблицы) + авто-флип вверх при нехватке места снизу
+
+### Изменено
+- Тёмная тема переведена на нейтральные серые тона (`#111827`/`#1f2937`) — убрана избыточная синяя насыщенность фона
+- Чипы исполнителей вынесены в класс `.exec-chip` с читаемым контрастом в обеих темах
+  (светлый текст на приглушённом фоне в тёмной теме вместо синего на тёмно-синем)
+- Бейджи приоритета («Высокий»/«Средний»/«Низкий») приведены к одинаковой ширине (72px, выравнивание по центру)
+- Выпадающие списки: нативная стрелка заменена кастомной, сдвинутой от правого края к центру (единый стиль для всех `select`)
+
+---
+
+## [2.0.0] — 2026-06-01
+
+### Добавлено (Этапы 4–6: UX-полировка, системные фичи, Docker)
+- **UX:** анимации Drawer/Modal/Toast/BulkActions (Svelte transitions), перенос фокуса в Drawer при открытии, Esc-закрытие, ARIA-метки
+- **Печать:** стили `@media print` под Tailwind-разметку (классы `no-print`/`print-only`), печатный заголовок с датой
+- **Системные фичи:** счётчик просрочки в заголовке вкладки, тёмная тема с предзагрузкой против FOUC и `prefers-color-scheme`, персист фильтров в localStorage, синхронизация открытой задачи с URL
+- **Docker:** рабочий multi-stage `Dockerfile`, `docker-compose.yml` (prod, healthcheck через Python вместо curl), `Dockerfile.dev` + `docker-compose.dev.yml` (hot-reload), `.dockerignore`
+- **Сидинг:** `scripts/seed.py` — наполнение тестовыми данными (4 отдела, 8 исполнителей, 18 задач, статусы, M2M-связи)
+- **Документация:** `docs/ARCHITECTURE.md`, `docs/MIGRATION_GUIDE.md`, обновлён `README.md`, обновлён skill `run-protocol` (driver.sh: `/health`, PaginatedResponse)
+
+### Исправлено (build-блокеры backend, найдены при запуске Docker)
+- `pyproject.toml`: невалидный `build-backend` → `setuptools.build_meta`
+- `Dockerfile`: установка пакета до копирования `app/` → копирование backend перед `pip install`
+- Запуск Alembic: `python -m alembic` не работает → консольный скрипт `alembic` (+ `alembic.config` в lifespan)
+- **Коллизия имён:** каталог миграций `backend/alembic/` с `__init__.py` затенял установленный пакет `alembic` → удалён `__init__.py`
+- Начальная миграция сделана идемпотентной (создаёт только отсутствующие таблицы + добавляет недостающие столбцы) — корректный путь v1→v2
+
+### Проверено (end-to-end через Docker)
+- `docker compose build` + `up` → контейнер **Up (healthy)**
+- `/health`, `/api/items` (PaginatedResponse), `/api/departments`, `/api/executors` — корректные v2-структуры с M2M-исполнителями и историей статусов
+- CSV-экспорт с UTF-8 BOM, smoke-driver `driver.sh` — все проверки пройдены
+- Фронтенд: `svelte-check` 0 ошибок/0 предупреждений, production build успешен
+
+---
+
+## [2.0.0-stage-3] — 2026-06-01
+
+### Добавлено (Этап 3: Перенос бизнес-логики)
+- **Таблица задач**: `ItemsTable` (сортируемые колонки, выбор всех, пагинация) + `ItemRow` (чекбокс, inline-селект состояния, чипы исполнителей, срок с расчётом, счётчик статусов)
+- **Drawer задачи**: `ItemDrawer` — форма + история статусов, кнопка «открыть в новой вкладке», `{#key itemId}` для пересоздания формы
+- **Формы**: `ItemForm` (все поля + мультивыбор исполнителей по отделам), `StatusForm` (дата + примечание)
+- **Timeline**: список статусов с выделением последнего, добавление/удаление
+- **Фильтры**: `Dashboard` (4 тайла-счётчика), `SearchBar` (debounce 150мс), `Filters` (отдел/исполнитель/приоритет + сброс)
+- **Групповые операции**: `BulkActions` — плавающая sticky-панель, появляется при выделении, массовая смена состояния и удаление
+- **Справочники**: `DepartmentsList` и `ExecutorsList` — добавление, inline-редактирование, удаление, группировка исполнителей по отделам, счётчики
+- **Common**: `Pagination` (с многоточиями), `ConfirmDialog` (promise-based через confirmStore)
+- **Сторы**: `confirm.svelte.ts` (promise-based подтверждения)
+- Экспорт CSV/XLSX и импорт CSV из тулбара
+- Базовая синхронизация открытой задачи с URL (`?task=N`)
+- Оптимистичные обновления состояния задач с откатом при ошибке
+- **Верификация:** svelte-check 0 ошибок/предупреждений, production build успешен
+
+---
+
+## [2.0.0-stage-2] — 2026-06-01
+
+### Добавлено (Этап 2: Фронтенд-каркас)
+- Svelte 5 + SvelteKit проект с adapter-static в SPA-режиме (fallback index.html → dist/)
+- Tailwind CSS 3.4 с тёмной темой через `data-theme` (совместимо с v1)
+- CSS-переменные тем Light/Dark портированы из v1 в `app.css`
+- Анти-FOUC: тема применяется в `app.html` до отрисовки
+- HTTP-клиент `lib/api/client.ts`: apiGet/Post/Patch/Put/Delete, класс ApiError, обработка [409]
+- API-модули по сущностям: items, statuses, departments, executors, export
+- TS-типы под v2-схемы + npm-скрипт `generate-types` (openapi-typescript)
+- Svelte 5 Runes stores (`.svelte.ts`):
+  - `items` — $state/$derived, фильтрация/сортировка, оптимистичные обновления с откатом
+  - `filters` — персист в localStorage, сортировка
+  - `selection`, `theme` (prefers-color-scheme), `refs`, `toast`
+- Базовые UI-компоненты: Button, Input, Select, Modal, Drawer, Badge, Toast, Loader
+- Drawer/Modal — нативная реализация на Svelte-транзишенах (Esc, клик по фону, a11y)
+- Утилиты портированы из v1: date (fmtDate/dueInfo с рабочими днями), format (plural), constants
+- Роуты: `+layout.svelte` (шапка, nav, тема, Toast, badge просрочки во вкладке), `+page.svelte` (дашборд+поиск+таблица), `refs/+page.svelte`
+- SPA-режим через `+layout.ts` (ssr=false)
+- Старый ванильный TS-фронтенд удалён
+- **Верификация:** svelte-check 0 ошибок/предупреждений, production build успешен
+
+---
+
+## [2.0.0-stage-1] — 2026-06-01
+
+### Добавлено (Этап 1: Бэкенд)
+- Структура директорий `backend/`, `scripts/`, `docs/`
+- `backend/pyproject.toml` с зависимостями: FastAPI 0.115+, SQLAlchemy 2.0 async, aiosqlite, Alembic, Pydantic v2, openpyxl
+- `backend/alembic.ini` + `alembic/env.py` в async-режиме (run_async_migrations)
+- `backend/app/config.py` — Pydantic Settings с DB_PATH, CORS origins
+- `backend/app/database.py` — async engine, get_db dependency с commit/rollback
+- SQLAlchemy 2.0 модели (mapped_column стиль): Department, Executor, Item, Status, item_executor_table
+- M2M нормализация: `item_executors` таблица вместо `executors_json`
+- Pydantic v2 схемы: ItemCreate/Update/Response, StatusCreate/Response, DepartmentCreate/Response, ExecutorCreate/Update/Response, PaginatedResponse[T], StateEnum, PriorityEnum
+- `BaseRepository[T]` — generic CRUD (flush, не commit)
+- Конкретные репозитории с selectinload для async lazy loading
+- Сервисы: ItemService, StatusService, DepartmentService, ExecutorService, CsvService
+- HTTP роутеры: /items (PATCH вместо PUT), /statuses, /departments, /executors, /export, /import
+- `GET /health` endpoint
+- Lifespan с автозапуском `alembic upgrade head`
+- Начальная миграция Alembic с WAL-режимом и FK правилами
+- `scripts/migrate_data.py` — перенос executors_json → item_executors
+- Тесты: conftest.py (in-memory SQLite, ASGI client), test_departments_api.py, test_items_api.py
+- `ruff.toml`, `.editorconfig`
+- `Dockerfile` v2 (multi-stage: Node→Python, dist→static)
+- `docker-compose.yml` с healthcheck
+- `docker-compose.dev.yml` + `Dockerfile.dev` (hot-reload backend + Svelte dev server)
+
+---
+
+## [2.0.0] — В разработке (Этапы 2-6)
+
+### Добавлено
+- **Полный рефакторинг на современный стек.** Переписывание с нуля всей кодовой базы согласно техническому заданию v2.
+- **Backend: FastAPI + SQLAlchemy ORM** вместо монолитного `app.py` с сырыми SQL-запросами.
+  - Структурированная архитектура: `routers/` → `services/` → `repositories/` → `models/`.
+  - Асинхронный режим через `asyncio + aiosqlite`.
+  - Валидация через `Pydantic v2` с поддержкой сложной бизнес-логики.
+  - Интерактивная документация Swagger UI на `/api/docs`.
+- **Frontend: Svelte 5 + Tailwind CSS** вместо ванильного TypeScript.
+  - Реактивность через Svelte Runes (`$state`, `$derived`) без необходимости внешнего state-менеджера.
+  - Компонентная архитектура с Bits UI для headless UI-компонентов.
+  - Минималистичный дизайн через Tailwind CSS с переменными для Light/Dark theme.
+  - End-to-end типизация: автоматическая генерация TS-типов из OpenAPI.
+- **Нормализация БД:** замена JSON-массива `executors_json` на классическую таблицу Many-to-Many `item_executors`.
+  - Эффективный поиск задач по исполнителю на уровне SQL.
+  - Корректное каскадное удаление.
+- **Миграции БД через Alembic:** версионирование схемы БД вместо ненадёжных `PRAGMA table_info` + `ALTER TABLE`.
+- **Drawer вместо inline-панели:** боковая панель задачи выезжает справа, не ломая верстку таблицы. Современный паттерн UX.
+- **Floating sticky panel для bulk-операций:** появляется только при выделении задач (как в Gmail/Notion).
+- **Безопасность:** полное исключение инлайн-обработчиков событий и конкатенации строк (рисков XSS).
+
+### Изменено
+- **UI переделан на Drawer/Slide-over Modal** вместо inline-расширяющейся панели.
+- **Структура проекта:** `backend/` и `frontend/` — разные экосистемы с собственными конфигурациями и тестами.
+- **API от OpenAPI/Swagger:** полная типизация и документация автоматически.
+- **Bulk-операции** с UX из современных веб-приложений (sticky floating panel).
+
+### Deprecated (удалено из v1)
+- `app.py` монолит.
+- Ванильный TypeScript с прямыми DOM-манипуляциями.
+- JSON-хранение исполнителей в одной колонке.
+- Статические миграции БД.
+
+### Исправлено
+- ❌ **XSS-уязвимости** через инлайн `onclick` в HTML-строках → Svelte автоматический санитайзинг.
+- ❌ **Неэффективный поиск по исполнителю** через JSON → SQL-запросы с JOIN на нормализованной таблице.
+- ❌ **Нестабильные миграции** → Alembic с версионированием.
+
+---
+
+## [1.7.0] — 2026-05-31
+
+### Добавлено
+- **Боковая панель задачи.** Клик по строке таблицы открывает фиксированную боковую панель
+  слева (300px): поля задачи (тема, состояние, приоритет, тикет, срок, исполнители),
+  полный таймлайн статусов с формой добавления, кнопки «Сохранить» / «Отмена» / «Удалить».
+  Открыта максимум одна панель; `Esc` закрывает.
+- **Открытие задачи в отдельном окне.** Кнопка «⧉ В новом окне» в шапке панели открывает
+  задачу по адресу `?task=<ID>` — только карточка без таблицы. На бэкенде добавлен `GET /api/items/{id}`.
+- **«+ Добавить»** теперь тоже открывает боковую панель (единая форма создания и редактирования).
+
+### Изменено
+- Удалены: модалки задачи и истории, inline-форма быстрого статуса, правка темы по двойному
+  клику, аккордеон статусов в ячейке. Логика вынесена в новый модуль `detail.ts` (вместо `modals.ts`).
+- Ячейка «Статусы» в таблице упрощена: последний статус + бейдж «ещё N».
+
+### Исправлено
+- **Счётчик просроченных в заголовке вкладки** не обновлялся при удалении задачи
+  (`updateTabTitle` теперь вызывается из `updateDashboardCounts` — единая точка).
+- **«Выбрать все»** в шапке таблицы не показывал панель массовых действий: обработчик
+  перекрашивает строки напрямую, не вызывая полный `render()` (который в контексте
+  `change`-события «съедал» обновление панели).
+
+## [1.6.2] — 2026-05-31
+
+### Изменено
+- **Меню «Действия»**: кнопки «Экспорт CSV», «Экспорт Excel», «Импорт CSV» и «Печать»
+  убраны из тулбара в выпадающее меню. Открывается кнопкой «Действия ▾»,
+  закрывается кликом снаружи или `Esc`.
+
+## [1.6.1] — 2026-05-31
+
+### Добавлено
+- **Экспорт в Excel** — новая кнопка «⬇ Excel» в тулбаре, эндпоинт `GET /api/export/xlsx`.
+  Форматирование: заморозка шапки, автоширина столбцов, цветовая подсветка приоритетов
+  (красный / жёлтый / зелёный) и состояний (синий / серый / зелёный), перенос текста в
+  длинных ячейках. Зависимость: `openpyxl 3.1.5`.
+
 ## [1.6.0] — 2026-05-31
 
 ### Добавлено

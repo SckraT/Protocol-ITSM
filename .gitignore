@@ -1,18 +1,36 @@
-# Данные приложения
-data/
+# Данные приложения (БД хранится локально, не в репо)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/*.sqlite*
 
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
 .venv/
 venv/
+backend/.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Node / фронтенд
 node_modules/
+frontend/node_modules/
 frontend/dist/
+frontend/.svelte-kit/
+frontend/build/
 
 # IDE / OS
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
+*.swp
+
+# Переменные окружения
+.env
+.env.local
+.env.*.local

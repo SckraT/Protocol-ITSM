@@ -1,0 +1,188 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS-переменные: светлая тема (по умолчанию) ── */
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-body: #f0f2f5;
+  --text-primary: #ffffff;
+  --text-secondary: #8b9ab8;
+  --text-body: #1a1a2e;
+  --accent: #2563eb;
+  --accent-light: #3b82f6;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --success: #059669;
+  --border: #e5e7eb;
+  --border-light: #f0f2f5;
+  --table-bg: #ffffff;
+  --table-hover: #f7f8fc;
+  --blue-light: #dbeafe;
+  --yellow-light: #fef3c7;
+  --green-light: #d1fae5;
+  --red-light: #fee2e2;
+}
+
+/* ── Тёмная тема (нейтральные серые тона, без синей насыщенности) ── */
+:root[data-theme='dark'] {
+  --bg-primary: #1f2937;
+  --bg-secondary: #1f2937;
+  --bg-body: #111827;
+  --text-primary: #f5f5f5;
+  --text-secondary: #9ca3af;
+  --text-body: #e5e7eb;
+  --accent: #3b82f6;
+  --accent-light: #60a5fa;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --success: #34d399;
+  --border: #374151;
+  --border-light: #1f2937;
+  --table-bg: #1f2937;
+  --table-hover: #2a3340;
+  --blue-light: #2a3650;
+  --yellow-light: #3a2f1a;
+  --green-light: #16352a;
+  --red-light: #3f2225;
+  color-scheme: dark;
+}
+
+/* ── Базовые стили ── */
+@layer base {
+  body {
+    background-color: var(--bg-body);
+    color: var(--text-body);
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+}
+
+/* ── Бейджи состояний ── */
+@layer components {
+  .badge {
+    @apply inline-flex items-center rounded px-2 py-0.5 text-xs font-medium;
+  }
+  .badge-in_progress {
+    background: var(--blue-light);
+    color: var(--accent);
+  }
+  .badge-postponed {
+    background: var(--yellow-light);
+    color: var(--warning);
+  }
+  .badge-closed {
+    background: var(--green-light);
+    color: var(--success);
+  }
+
+  /* Чип исполнителя — читаемый контраст в обеих темах */
+  .exec-chip {
+    @apply inline-flex items-center rounded px-1.5 py-0.5 text-xs;
+    background: var(--blue-light);
+    color: var(--accent);
+  }
+}
+
+/* Тёмная тема: более светлый текст для читаемости на приглушённых фонах */
+:root[data-theme='dark'] .badge-in_progress {
+  color: #93c5fd;
+}
+:root[data-theme='dark'] .badge-postponed {
+  color: #fcd34d;
+}
+:root[data-theme='dark'] .badge-closed {
+  color: #6ee7b7;
+}
+:root[data-theme='dark'] .exec-chip {
+  background: #2a3650;
+  color: #cdddf5;
+}
+
+/* ── Выпадающие списки: кастомная стрелка, сдвинутая от правого края ── */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af' stroke-width='2.2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.43rem center;
+  background-size: 0.8rem;
+  /* Резервируем место под стрелку, чтобы текст её не перекрывал */
+  padding-right: 1.7rem !important;
+}
+/* Скрываем нативную стрелку в старом Edge/IE */
+select::-ms-expand {
+  display: none;
+}
+
+/* ── Печать ── */
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 1.5cm 1.5cm 2cm;
+  }
+
+  /* Скрываем интерактивные и навигационные элементы */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Заголовок только для печати */
+  .print-only {
+    display: block !important;
+    margin-bottom: 14pt;
+    border-bottom: 1.5pt solid #1a1a2e;
+    padding-bottom: 8pt;
+  }
+  .print-title {
+    font-size: 17pt;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+  .print-meta {
+    font-size: 9pt;
+    color: #555;
+    margin-top: 3pt;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 10pt;
+  }
+
+  /* Таблица: разворачиваем полностью, без теней и скруглений */
+  .table-wrap {
+    overflow: visible !important;
+    border: none !important;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    box-shadow: none !important;
+  }
+  thead th {
+    background: #1a1a2e !important;
+    color: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-size: 8pt;
+  }
+  td,
+  th {
+    border: 1pt solid #ccc;
+    padding: 6pt 8pt;
+    font-size: 9.5pt;
+  }
+  tbody tr {
+    page-break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+}

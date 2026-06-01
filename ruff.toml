@@ -1,0 +1,10 @@
+# Конфигурация Ruff — линтер для Python
+line-length = 120
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "I", "N"]
+ignore = ["E501"]  # длина строк контролируется отдельно
+
+[lint.per-file-ignores]
+"backend/tests/*" = ["F401"]  # импорты без использования в тестах ок

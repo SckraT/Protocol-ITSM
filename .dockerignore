@@ -1,0 +1,20 @@
+# Зависимости и артефакты сборки
+frontend/node_modules
+frontend/dist
+frontend/.svelte-kit
+backend/.venv
+backend/**/__pycache__
+**/*.pyc
+
+# Данные и БД (монтируются как volume, не нужны в образе)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Прочее
+.git
+.gitignore
+*.md
+.claude
+.vscode
+*.log

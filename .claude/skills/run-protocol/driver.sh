@@ -10,32 +10,38 @@ TIMEOUT=10
 echo "=== Protocol Smoke Test ==="
 echo ""
 
-# 1. Check if server is running
-echo "✓ Checking if server is accessible..."
-if ! timeout $TIMEOUT curl -s "$API_BASE/" > /dev/null 2>&1; then
-    echo "✗ Server not responding at $API_BASE"
+# 1. Health check
+echo "✓ Checking /health endpoint..."
+if ! timeout $TIMEOUT curl -sf "$API_BASE/health" > /dev/null 2>&1; then
+    echo "✗ Health check failed at $API_BASE/health"
     exit 1
 fi
-echo "  Server is responding"
+health=$(curl -s "$API_BASE/health")
+if echo "$health" | grep -q '"status"'; then
+    echo "  Health: $health"
+else
+    echo "✗ /health did not return expected payload"
+    exit 1
+fi
 
-# 2. Check main UI loads
+# 2. Check main UI loads (Svelte SPA)
 echo "✓ Loading main page..."
 ui_response=$(curl -s "$API_BASE/")
-if echo "$ui_response" | grep -q "Meeting Minutes\|Протокол\|Meeting"; then
-    echo "  Main page loaded successfully"
+if echo "$ui_response" | grep -q "Протокол\|sveltekit\|<!doctype html>"; then
+    echo "  Main page (SPA) loaded successfully"
 else
     echo "✗ Main page does not contain expected content"
     exit 1
 fi
 
-# 3. Test API: get items
+# 3. Test API: get items (v2 returns PaginatedResponse: {items, total, page, page_size})
 echo "✓ Testing /api/items endpoint..."
 items=$(curl -s "$API_BASE/api/items")
-if echo "$items" | grep -q '"id"'; then
-    count=$(echo "$items" | grep -o '"id"' | wc -l)
-    echo "  API returned $count item(s)"
+if echo "$items" | grep -q '"total"\|"items"'; then
+    echo "  API returned paginated items response"
 else
-    echo "  API returned items list (may be empty)"
+    echo "✗ /api/items did not return expected PaginatedResponse shape"
+    exit 1
 fi
 
 # 4. Test API: get departments
