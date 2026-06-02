@@ -22,6 +22,8 @@ frontend/node_modules/
 frontend/dist/
 frontend/.svelte-kit/
 frontend/build/
+# Сборка фронтенда собирается в образ при docker build, в репо не хранится
+/static/
 
 # IDE / OS
 .idea/
