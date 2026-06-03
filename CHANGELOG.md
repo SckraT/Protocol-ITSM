@@ -5,6 +5,14 @@
 
 ---
 
+## [Unreleased]
+
+### Изменено
+- Skill `release-pr` дополнен шагом reconcile `beta` с `main` после squash-мерджа
+  (`git merge -s ours`) и troubleshooting по непомерживаемому PR из-за расхождения истории.
+
+---
+
 ## [2.2.1] — 2026-06-03
 
 ### Изменено
