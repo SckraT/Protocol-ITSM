@@ -16,13 +16,6 @@ class SelectionStore {
     this.selected = next;
   }
 
-  set(id: number, value: boolean): void {
-    const next = new Set(this.selected);
-    if (value) next.add(id);
-    else next.delete(id);
-    this.selected = next;
-  }
-
   /** Выделить/снять выделение со всех переданных id. */
   setAll(ids: number[], value: boolean): void {
     const next = new Set(this.selected);

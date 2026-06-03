@@ -15,18 +15,32 @@ function createAuthStore() {
   let user = $state<AuthUser | null>(null);
   let accessToken = $state<string | null>(null);
 
+  // Проверка, что распарсенный объект действительно похож на пользователя
+  function isAuthUser(v: unknown): v is AuthUser {
+    return (
+      typeof v === 'object' &&
+      v !== null &&
+      typeof (v as AuthUser).username === 'string' &&
+      typeof (v as AuthUser).role === 'string'
+    );
+  }
+
   // Восстановить сессию из localStorage
   function restore(): void {
     if (!browser) return;
     const storedUser = localStorage.getItem(LS_USER);
     const storedToken = localStorage.getItem(LS_ACCESS);
-    if (storedUser && storedToken) {
-      try {
-        user = JSON.parse(storedUser) as AuthUser;
+    if (!storedUser || !storedToken) return;
+    try {
+      const parsed = JSON.parse(storedUser);
+      if (isAuthUser(parsed)) {
+        user = parsed;
         accessToken = storedToken;
-      } catch {
-        _clear();
+      } else {
+        _clear(); // валидный JSON, но не пользователь (повреждённые данные)
       }
+    } catch {
+      _clear();
     }
   }
 
@@ -64,6 +78,11 @@ function createAuthStore() {
 
   // Восстанавливаем сессию при инициализации модуля
   restore();
+
+  // После «тихого» refresh токена (api/client.ts) перечитываем роль/имя из localStorage
+  if (browser) {
+    window.addEventListener('auth:refreshed', restore);
+  }
 
   return {
     get user() { return user; },

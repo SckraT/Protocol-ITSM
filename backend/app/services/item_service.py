@@ -5,9 +5,11 @@
 from datetime import date as date_type
 
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.item import Item
+from app.models.meeting import Meeting
 from app.models.status import Status
 from app.repositories.item_repository import ItemRepository
 from app.repositories.status_repository import StatusRepository
@@ -37,14 +39,7 @@ def _serialize_item(item: Item) -> ItemResponse:
     ]
 
     # Список исполнителей с именами отделов
-    executors = [
-        ExecutorInItem(
-            id=e.id,
-            name=e.name,
-            department_name=e.department.name if e.department else None,
-        )
-        for e in item.executors
-    ]
+    executors = [ExecutorInItem.from_executor(e) for e in item.executors]
 
     return ItemResponse(
         id=item.id,
@@ -68,6 +63,16 @@ class ItemService:
     def __init__(self, session: AsyncSession) -> None:
         self.repo = ItemRepository(session)
         self.status_repo = StatusRepository(session)
+
+    async def _ensure_meeting_exists(self, meeting_id: int | None) -> None:
+        """Проверить, что совещание существует (400 если нет). None — пропускаем."""
+        if meeting_id is None:
+            return
+        result = await self.repo.session.execute(
+            select(Meeting.id).where(Meeting.id == meeting_id)
+        )
+        if result.scalar_one_or_none() is None:
+            raise HTTPException(status_code=400, detail="Указанное совещание не существует")
 
     async def list_items(
         self,
@@ -108,6 +113,7 @@ class ItemService:
 
     async def create_item(self, data: ItemCreate) -> ItemResponse:
         """Создать новую задачу, опционально с начальным статусом."""
+        await self._ensure_meeting_exists(data.meeting_id)
         item = Item(
             topic=data.topic,
             ticket=data.ticket,
@@ -144,6 +150,10 @@ class ItemService:
         # Обновляем только переданные поля
         update_data = data.model_dump(exclude_unset=True)
         executor_ids = update_data.pop("executor_ids", None)
+
+        # Привязка к совещанию: значение (не None) должно ссылаться на существующее
+        if "meeting_id" in update_data:
+            await self._ensure_meeting_exists(update_data["meeting_id"])
 
         for field, value in update_data.items():
             if field == "priority":

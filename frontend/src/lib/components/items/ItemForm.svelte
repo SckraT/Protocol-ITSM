@@ -48,6 +48,31 @@
 
   const meetings = $derived(meetingsStore.all);
 
+  // Выбранное совещание (если есть)
+  const selectedMeeting = $derived(
+    meetingVal ? meetings.find((m) => m.id === Number(meetingVal)) ?? null : null
+  );
+
+  // Доступные исполнители: участники выбранного совещания, иначе (без совещания) — все.
+  const allowedExecutorIds = $derived(
+    selectedMeeting ? selectedMeeting.participants.map((p) => p.id) : null
+  );
+
+  // При смене совещания убираем из выбора тех, кто не участвует в нём.
+  function onMeetingChange() {
+    if (!selectedMeeting) return; // «Без совещания» — доступны все, ничего не убираем
+    const allowed = new Set(selectedMeeting.participants.map((p) => p.id));
+    const next = new Set([...selectedExecutors].filter((id) => allowed.has(id)));
+    if (next.size !== selectedExecutors.size) selectedExecutors = next;
+  }
+
+  // Добавить исполнителя в участники выбранного совещания (из списка задачи).
+  async function addParticipant(execId: number) {
+    if (!selectedMeeting) return;
+    const ids = [...selectedMeeting.participants.map((p) => p.id), execId];
+    await meetingsStore.update(selectedMeeting.id, { participant_ids: ids });
+  }
+
   async function submit() {
     if (!topic.trim()) return;
     saving = true;
@@ -121,7 +146,7 @@
   <!-- Совещание -->
   <div class="flex flex-col gap-1">
     <label for="f-meeting" class={labelClass}>Совещание</label>
-    <select id="f-meeting" bind:value={meetingVal} class={fieldClass}>
+    <select id="f-meeting" bind:value={meetingVal} onchange={onMeetingChange} class={fieldClass}>
       <option value="">— Без совещания —</option>
       {#each meetings as m (m.id)}
         <option value={String(m.id)}>{m.title}</option>
@@ -129,6 +154,16 @@
     </select>
   </div>
 
-  <!-- Исполнители — поисковый мультиселект -->
-  <ExecutorMultiSelect bind:selected={selectedExecutors} />
+  <!-- Исполнители — поисковый мультиселект. При выбранном совещании ограничены его участниками. -->
+  <ExecutorMultiSelect
+    bind:selected={selectedExecutors}
+    allowedIds={allowedExecutorIds}
+    onAddAllowed={selectedMeeting ? addParticipant : null}
+  />
+  {#if selectedMeeting}
+    <p class="-mt-2 text-xs text-[var(--text-secondary)]">
+      Доступны участники совещания «{selectedMeeting.title}». Остальных можно добавить
+      в совещание прямо из списка (кнопка «＋»).
+    </p>
+  {/if}
 </form>

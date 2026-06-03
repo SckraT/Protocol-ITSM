@@ -15,6 +15,15 @@ class ExecutorInItem(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @classmethod
+    def from_executor(cls, executor) -> "ExecutorInItem":
+        """Собрать из ORM-объекта Executor (с предзагруженным department)."""
+        return cls(
+            id=executor.id,
+            name=executor.name,
+            department_name=executor.department.name if executor.department else None,
+        )
+
 
 class StatusInItem(BaseModel):
     """Запись статуса в составе задачи (краткая форма)."""

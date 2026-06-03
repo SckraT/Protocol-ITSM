@@ -1,7 +1,7 @@
 """
 Репозиторий пользователей — наследует BaseRepository[User].
 """
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -17,7 +17,7 @@ class UserRepository(BaseRepository[User]):
     async def get_by_username(self, username: str) -> User | None:
         """Найти пользователя по имени (регистронезависимо)."""
         result = await self.session.execute(
-            select(User).where(User.username == username)
+            select(User).where(func.lower(User.username) == username.strip().lower())
         )
         return result.scalar_one_or_none()
 

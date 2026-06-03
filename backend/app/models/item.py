@@ -32,10 +32,6 @@ class Item(Base):
         index=True,
     )
 
-    # Сохраняем старое поле для совместимости при миграции данных из v1
-    # ORM не использует это поле — только скрипт migrate_data.py
-    executors_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-
     # Связи
     meeting: Mapped["Meeting | None"] = relationship(
         "Meeting",

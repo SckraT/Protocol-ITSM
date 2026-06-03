@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.executor import Executor
+from app.models.item import Item
 from app.models.meeting import Meeting
 from app.repositories.base import BaseRepository
 
@@ -20,15 +21,25 @@ class MeetingRepository(BaseRepository[Meeting]):
         super().__init__(Meeting, session)
 
     def _base_query(self):
-        """Базовый запрос с предзагрузкой участников (и их отделов) и задач."""
+        """Базовый запрос с предзагрузкой участников (и их отделов)."""
         return (
             select(Meeting)
             .options(
                 selectinload(Meeting.participants).selectinload(Executor.department),
-                selectinload(Meeting.items),
             )
             .order_by(Meeting.meeting_date.desc().nullslast(), Meeting.id.desc())
         )
+
+    async def item_counts(self, meeting_ids: Sequence[int]) -> dict[int, int]:
+        """Кол-во задач по каждому совещанию одним GROUP BY (вместо загрузки строк)."""
+        if not meeting_ids:
+            return {}
+        result = await self.session.execute(
+            select(Item.meeting_id, func.count())
+            .where(Item.meeting_id.in_(meeting_ids))
+            .group_by(Item.meeting_id)
+        )
+        return {mid: cnt for mid, cnt in result.all()}
 
     async def get_with_relations(self, meeting_id: int) -> Meeting | None:
         """Получить совещание с предзагруженными участниками и задачами."""

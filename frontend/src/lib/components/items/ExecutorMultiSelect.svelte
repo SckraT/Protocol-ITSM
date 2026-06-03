@@ -3,18 +3,32 @@
   // Возможности: поиск по имени/отделу, выбранные показаны чипами, выпадающий список
   // с группировкой по отделам, сворачивание групп, выбор/снятие всего отдела.
   import { tick } from 'svelte';
-  import { ChevronDown, ChevronRight, Search, X, Check } from 'lucide-svelte';
+  import { ChevronDown, ChevronRight, Search, X, Check, Plus } from 'lucide-svelte';
   import { refsStore } from '$lib/stores/refs.svelte';
 
   let {
     selected = $bindable(new Set<number>()),
-    label = 'Исполнители'
+    label = 'Исполнители',
+    allowedIds = null,
+    onAddAllowed = null
   }: {
     selected?: Set<number>;
     label?: string;
+    // Ограничить выбор этими id (напр. участниками совещания). null — доступны все.
+    allowedIds?: number[] | null;
+    // Если задан — под списком показываем «не из совещания» с кнопкой добавить.
+    // Колбэк должен добавить исполнителя в разрешённые (напр. в участники совещания).
+    onAddAllowed?: ((id: number) => Promise<void> | void) | null;
   } = $props();
 
   const NO_DEPT = '— Без отдела —';
+
+  // Множество разрешённых id (null — без ограничения)
+  const allowedSet = $derived(allowedIds ? new Set(allowedIds) : null);
+  const restricted = $derived(allowedSet !== null);
+  // Можно ли добавлять «чужих» в разрешённые (есть ограничение и колбэк)
+  const canAdd = $derived(restricted && !!onAddAllowed);
+  let pendingAdd = $state<Set<number>>(new Set()); // id в процессе добавления
 
   let open = $state(false);
   let query = $state('');
@@ -25,27 +39,46 @@
   // Выбранные исполнители (в порядке справочника)
   const selectedList = $derived(refsStore.executors.filter((e) => selected.has(e.id)));
 
-  // Отфильтрованные и сгруппированные по отделу исполнители для выпадающего списка
-  const groups = $derived.by(() => {
+  // Группирует исполнителей по отделу с учётом поиска и предиката включения.
+  function buildGroups(include: (id: number) => boolean) {
     const q = query.trim().toLowerCase();
     const map = new Map<string, typeof refsStore.executors>();
     for (const e of refsStore.executors) {
+      if (!include(e.id)) continue;
       const dept = e.department_name ?? NO_DEPT;
       if (q && !e.name.toLowerCase().includes(q) && !dept.toLowerCase().includes(q)) continue;
       const list = map.get(dept) ?? [];
       list.push(e);
       map.set(dept, list);
     }
-    // Сортируем отделы и людей по алфавиту
     return [...map.entries()]
       .sort((a, b) => a[0].localeCompare(b[0], 'ru'))
       .map(([dept, execs]) => ({
         dept,
         execs: [...execs].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
       }));
-  });
+  }
+
+  // Доступные для выбора (с учётом ограничения)
+  const groups = $derived.by(() => buildGroups((id) => !allowedSet || allowedSet.has(id)));
+  // «Не из совещания» — для кнопки добавления (только когда это разрешено)
+  const outsideGroups = $derived.by(() => (canAdd ? buildGroups((id) => !allowedSet!.has(id)) : []));
 
   const hasQuery = $derived(query.trim().length > 0);
+
+  // Добавить исполнителя в разрешённые (через колбэк) и сразу выбрать для задачи
+  async function addToMeeting(id: number) {
+    if (!onAddAllowed || pendingAdd.has(id)) return;
+    pendingAdd = new Set(pendingAdd).add(id);
+    try {
+      await onAddAllowed(id);
+      selected = new Set(selected).add(id);
+    } finally {
+      const next = new Set(pendingAdd);
+      next.delete(id);
+      pendingAdd = next;
+    }
+  }
 
   function toggle(id: number) {
     const next = new Set(selected);
@@ -158,7 +191,7 @@
   <!-- Выпадающая панель -->
   {#if open}
     <div
-      class="z-20 mt-1 overflow-hidden rounded-md border border-[var(--border)] bg-[var(--bg-primary)] shadow-lg"
+      class="z-20 mt-1 overflow-hidden rounded-md border border-[var(--border)] bg-[var(--table-bg)] shadow-lg"
     >
       <!-- Поиск -->
       <div class="flex items-center gap-2 border-b border-[var(--border)] px-2.5 py-2">
@@ -238,9 +271,35 @@
           </div>
         {:else}
           <p class="px-3 py-4 text-center text-sm text-[var(--text-secondary)]">
-            {hasQuery ? 'Ничего не найдено' : 'Нет исполнителей в справочнике'}
+            {#if hasQuery}Ничего не найдено{:else if restricted}В выбранном совещании нет участников{:else}Нет исполнителей в справочнике{/if}
           </p>
         {/each}
+
+        <!-- Не из совещания — добавить участником на месте -->
+        {#if canAdd && outsideGroups.length > 0}
+          <div class="mt-1 border-t border-[var(--border)] pt-1">
+            <p class="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+              Добавить в совещание
+            </p>
+            {#each outsideGroups as group (group.dept)}
+              <div class="px-3 pt-1 text-xs font-semibold text-[var(--text-secondary)]">{group.dept}</div>
+              {#each group.execs as exec (exec.id)}
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--table-hover)] hover:text-[var(--text-body)] disabled:opacity-50"
+                  disabled={pendingAdd.has(exec.id)}
+                  title="Добавить «{exec.name}» в участники совещания"
+                  onclick={() => addToMeeting(exec.id)}
+                >
+                  <span class="flex h-4 w-4 shrink-0 items-center justify-center rounded text-[var(--accent)]">
+                    <Plus size={13} />
+                  </span>
+                  {exec.name}
+                </button>
+              {/each}
+            {/each}
+          </div>
+        {/if}
       </div>
 
       <!-- Подвал -->

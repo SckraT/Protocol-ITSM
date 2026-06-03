@@ -19,6 +19,7 @@ from app.models.item import Item
 from app.models.status import Status
 from app.repositories.executor_repository import ExecutorRepository
 from app.repositories.item_repository import ItemRepository
+from app.schemas.common import PriorityEnum, StateEnum
 from app.utils.constants import (
     CSV_FIELDS,
     PRIORITY_FILL_COLOR,
@@ -26,6 +27,40 @@ from app.utils.constants import (
     STATE_FILL_COLOR,
     STATE_LABEL_RU,
 )
+
+# Обратные карты «русская метка → значение enum» — чтобы импорт принимал и значения
+# (in_progress), и подписи из экспорта (В работе). Неизвестное → дефолт/None.
+_STATE_BY_LABEL = {label: value for value, label in STATE_LABEL_RU.items()}
+_PRIORITY_BY_LABEL = {label: value for value, label in PRIORITY_LABEL_RU.items()}
+_STATE_VALUES = {e.value for e in StateEnum}
+_PRIORITY_VALUES = {e.value for e in PriorityEnum}
+
+
+def _parse_state(raw: str | None) -> str:
+    """Нормализовать состояние из CSV. Неизвестное → in_progress."""
+    v = (raw or "").strip()
+    if v in _STATE_VALUES:
+        return v
+    return _STATE_BY_LABEL.get(v, StateEnum.in_progress.value)
+
+
+def _parse_priority(raw: str | None) -> str | None:
+    """Нормализовать приоритет из CSV. Неизвестное → None."""
+    v = (raw or "").strip()
+    if v in _PRIORITY_VALUES:
+        return v
+    return _PRIORITY_BY_LABEL.get(v)
+
+
+def _parse_date(raw: str | None) -> date_type | None:
+    """Разобрать дату ISO (YYYY-MM-DD). Невалидное/пустое → None."""
+    v = (raw or "").strip()
+    if not v:
+        return None
+    try:
+        return date_type.fromisoformat(v)
+    except ValueError:
+        return None
 
 
 class CsvService:
@@ -233,13 +268,13 @@ class CsvService:
                         created_exec = await self.exec_repo.create(new_exec)
                         exec_ids.append(created_exec.id)
 
-            # Создаём задачу
+            # Создаём задачу (значения нормализуем — иначе мусор сломает чтение)
             item = Item(
                 topic=topic,
                 ticket=row.get("ticket") or None,
-                priority=row.get("priority") or None,
-                state=row.get("state") or "in_progress",
-                due_date=row.get("due_date") or None,
+                priority=_parse_priority(row.get("priority")),
+                state=_parse_state(row.get("state")),
+                due_date=_parse_date(row.get("due_date")),
             )
             created_item = await self.item_repo.create(item)
 
@@ -252,7 +287,7 @@ class CsvService:
             if s_note:
                 status = Status(
                     item_id=created_item.id,
-                    status_date=row.get("last_status_date") or None,
+                    status_date=_parse_date(row.get("last_status_date")),
                     status_note=s_note,
                 )
                 self.session.add(status)

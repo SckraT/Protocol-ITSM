@@ -13,6 +13,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import Select from '$lib/components/ui/Select.svelte';
+  import { fmtIsoDate } from '$lib/utils/date';
 
   let users = $state<UserResponse[]>([]);
   let loading = $state(true);
@@ -135,9 +136,6 @@
     }
   }
 
-  function fmtDate(iso: string): string {
-    return new Date(iso).toLocaleDateString('ru-RU');
-  }
 </script>
 
 <svelte:head>
@@ -199,7 +197,7 @@
                   </span>
                 {/if}
               </td>
-              <td class="px-4 py-3 text-[var(--text-secondary)]">{fmtDate(user.created_at)}</td>
+              <td class="px-4 py-3 text-[var(--text-secondary)]">{fmtIsoDate(user.created_at)}</td>
               <td class="px-4 py-3">
                 <div class="flex items-center gap-1">
                   <button

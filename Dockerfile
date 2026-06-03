@@ -39,5 +39,6 @@ ENV PYTHONPATH=/app/backend
 VOLUME ["/app/data"]
 EXPOSE 8000
 
-# Запуск: миграции → сервер (alembic — консольный скрипт, не python -m)
-CMD ["sh", "-c", "cd /app/backend && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# Запуск сервера. Миграции применяются в lifespan приложения (единая точка,
+# с прерыванием старта при сбое) — здесь повторно не запускаем.
+CMD ["sh", "-c", "cd /app/backend && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

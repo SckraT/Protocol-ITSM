@@ -37,6 +37,12 @@ async function tryRefresh(): Promise<string | null> {
     const data = await res.json();
     localStorage.setItem(LS_ACCESS, data.access_token);
     localStorage.setItem(LS_REFRESH, data.refresh_token);
+    // Роль могла измениться на сервере — синхронизируем сохранённого пользователя
+    if (data.username && data.role) {
+      localStorage.setItem(LS_USER, JSON.stringify({ username: data.username, role: data.role }));
+    }
+    // Просим authStore перечитать сессию из localStorage (роль/имя в UI)
+    window.dispatchEvent(new Event('auth:refreshed'));
     return data.access_token;
   } catch {
     return null;

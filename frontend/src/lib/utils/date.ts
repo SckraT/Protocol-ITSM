@@ -9,6 +9,12 @@ export function fmtDate(d: string | null | undefined): string {
   return `${day}.${m}.${y}`;
 }
 
+/** Форматирует ISO-таймстамп (created_at) в локальную дату DD.MM.YYYY. */
+export function fmtIsoDate(iso: string | null | undefined): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('ru-RU');
+}
+
 /** Сегодняшняя дата в формате YYYY-MM-DD. */
 export function today(): string {
   return new Date().toISOString().slice(0, 10);

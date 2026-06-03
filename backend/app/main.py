@@ -20,12 +20,14 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.database import engine, get_db
+from app.dependencies import get_current_user
 from app.routers.auth import router as auth_router
 from app.routers.departments import router as departments_router
 from app.routers.executors import router as executors_router
@@ -58,10 +60,19 @@ async def lifespan(app: FastAPI):
         text=True,
     )
     if result.returncode != 0:
-        # Миграция не критична для запуска в dev-режиме (может быть уже применена)
-        print(f"[alembic] {result.stderr}", flush=True)
-    else:
-        print("[alembic] Миграции применены успешно", flush=True)
+        # Реальный сбой миграции нельзя глотать: иначе приложение поднимется
+        # на неполной схеме и будет отдавать 500 на запросах. Прерываем старт.
+        print(f"[alembic] ОШИБКА применения миграций:\n{result.stderr}", flush=True)
+        raise RuntimeError("Не удалось применить миграции Alembic — запуск прерван")
+    print("[alembic] Миграции применены успешно", flush=True)
+
+    # Предупреждение о небезопасных дефолтах в проде
+    if not settings.DEBUG and settings.SECRET_KEY == "change-me-in-production-use-strong-random-key":
+        print(
+            "[security] ВНИМАНИЕ: используется дефолтный SECRET_KEY! "
+            "Задайте свой SECRET_KEY в .env (openssl rand -hex 32) перед продакшном.",
+            flush=True,
+        )
 
     # Seed первого Admin (если таблица users пуста)
     await _seed_first_admin()
@@ -105,7 +116,7 @@ async def _seed_first_admin() -> None:
 app = FastAPI(
     title="Протокол совещания v2.0",
     description="API для управления задачами протокола совещания",
-    version="2.2.0",
+    version="2.2.1",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
@@ -121,24 +132,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Подключаем все роутеры с префиксом /api
+# Базовый guard «требуется авторизация» на уровне роутера — чтобы новый эндпоинт
+# по умолчанию был закрыт, а не открыт (мутации дополнительно требуют require_editor).
+_auth = [Depends(get_current_user)]
+
+# /auth — открыт (login/refresh); /users — уже под require_admin на уровне роутера.
 app.include_router(auth_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
-app.include_router(departments_router, prefix="/api")
-app.include_router(executors_router, prefix="/api")
-app.include_router(items_router, prefix="/api")
-app.include_router(meetings_router, prefix="/api")
-app.include_router(statuses_router, prefix="/api")
-app.include_router(export_router, prefix="/api")
-app.include_router(import_router, prefix="/api")
+app.include_router(departments_router, prefix="/api", dependencies=_auth)
+app.include_router(executors_router, prefix="/api", dependencies=_auth)
+app.include_router(items_router, prefix="/api", dependencies=_auth)
+app.include_router(meetings_router, prefix="/api", dependencies=_auth)
+app.include_router(statuses_router, prefix="/api", dependencies=_auth)
+app.include_router(export_router, prefix="/api", dependencies=_auth)
+app.include_router(import_router, prefix="/api", dependencies=_auth)
 
 
 @app.get("/health", tags=["Система"], summary="Health check")
 async def health_check():
     """Проверка работоспособности сервиса."""
-    return {"status": "ok", "version": "2.2.0"}
+    return {"status": "ok", "version": "2.2.1"}
 
 
-# Раздача статики (собранный фронтенд) — только если директория существует
+# Раздача статики (собранный фронтенд SPA) — только если директория существует.
+# SvelteKit (adapter-static) делает клиентский роутинг: на любой неизвестный путь
+# нужно отдавать index.html, иначе перезагрузка страницы вроде /meetings даёт 404.
 if STATIC_DIR.exists():
-    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
+    _index_html = STATIC_DIR / "index.html"
+
+    # Хешированные ассеты сборки — отдаём через StaticFiles (корректные заголовки/кеш)
+    app.mount("/_app", StaticFiles(directory=str(STATIC_DIR / "_app")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        """Отдать конкретный файл, если он есть, иначе — entry SPA (клиентский роутинг)."""
+        # Неизвестные /api — это реальный 404 API, а не страница SPA
+        if full_path == "api" or full_path.startswith("api/"):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+
+        # Конкретный существующий файл (favicon.ico и т.п.) — с защитой от обхода пути
+        if full_path:
+            candidate = (STATIC_DIR / full_path).resolve()
+            if candidate.is_file() and str(candidate).startswith(str(STATIC_DIR.resolve())):
+                return FileResponse(candidate)
+
+        # Иначе — index.html, дальше роутинг на клиенте
+        return FileResponse(_index_html)

@@ -22,17 +22,20 @@ class Meeting(Base):
     meeting_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Участники — исполнители через M2M
+    # Участники — исполнители через M2M. lazy="selectin" нужен для записи коллекции
+    # (update_participants) в async-контексте. На списке задач каскад подавляется
+    # через noload(Meeting.participants) в ItemRepository.
     participants: Mapped[list["Executor"]] = relationship(
         "Executor",
         secondary="meeting_participants",
         lazy="selectin",
     )
-    # Задачи совещания (для счётчика item_count)
+    # Задачи совещания. Счётчик item_count считается отдельным COUNT-запросом,
+    # коллекцию не предзагружаем (иначе грузили бы все строки задач). Запись идёт
+    # со стороны Item.meeting_id, поэтому ленивая стратегия по умолчанию безопасна.
     items: Mapped[list["Item"]] = relationship(
         "Item",
         back_populates="meeting",
-        lazy="selectin",
     )
 
     def __repr__(self) -> str:

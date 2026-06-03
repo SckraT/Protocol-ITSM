@@ -5,6 +5,7 @@
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -28,6 +29,15 @@ engine = create_async_engine(
         "timeout": 30,
     },
 )
+
+
+# SQLite по умолчанию НЕ проверяет внешние ключи — включаем на каждом подключении,
+# чтобы работали CASCADE/SET NULL (иначе FK существуют только в схеме, но не enforce-ятся).
+@event.listens_for(engine.sync_engine, "connect")
+def _enable_sqlite_fk(dbapi_connection, _connection_record) -> None:
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 # Фабрика сессий
 async_session = async_sessionmaker(

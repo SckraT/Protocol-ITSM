@@ -6,11 +6,12 @@ from collections.abc import Sequence
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import noload, selectinload
 
 from app.models.executor import Executor
 from app.models.item import Item
 from app.models.item_executor import item_executor_table
+from app.models.meeting import Meeting
 from app.repositories.base import BaseRepository
 from app.schemas.common import PriorityEnum, StateEnum
 
@@ -30,8 +31,10 @@ class ItemRepository(BaseRepository[Item]):
                 selectinload(Item.executors).selectinload(Executor.department),
                 # Предзагружаем все статусы
                 selectinload(Item.statuses),
-                # Предзагружаем совещание (для meeting_title)
-                selectinload(Item.meeting),
+                # Предзагружаем совещание (нужен только meeting_title), но без его
+                # участников — иначе на каждый список задач каскадом грузился бы
+                # весь граф участников/отделов совещаний.
+                selectinload(Item.meeting).noload(Meeting.participants),
             )
             .order_by(Item.id)
         )

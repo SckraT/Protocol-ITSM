@@ -9,11 +9,3 @@ export function plural(n: number, forms: [string, string, string]): string {
   if (b === 1) return forms[0];
   return forms[2];
 }
-
-/** Экранирование HTML (для CSV/экспорта; в Svelte-шаблонах не требуется). */
-export function esc(s: unknown): string {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
