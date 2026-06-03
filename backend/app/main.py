@@ -105,7 +105,7 @@ async def _seed_first_admin() -> None:
 app = FastAPI(
     title="Протокол совещания v2.0",
     description="API для управления задачами протокола совещания",
-    version="2.0.0",
+    version="2.2.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
@@ -136,7 +136,7 @@ app.include_router(import_router, prefix="/api")
 @app.get("/health", tags=["Система"], summary="Health check")
 async def health_check():
     """Проверка работоспособности сервиса."""
-    return {"status": "ok", "version": "2.0.0"}
+    return {"status": "ok", "version": "2.2.0"}
 
 
 # Раздача статики (собранный фронтенд) — только если директория существует
