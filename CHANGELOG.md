@@ -8,8 +8,9 @@
 ## [Unreleased]
 
 ### Изменено
-- Skill `release-pr` дополнен шагом reconcile `beta` с `main` после squash-мерджа
-  (`git merge -s ours`) и troubleshooting по непомерживаемому PR из-за расхождения истории.
+- **Git-флоу:** после каждого релиза `beta` сбрасывается на `main`
+  (`git reset --hard origin/main` + `--force-with-lease`) вместо merge-reconcile —
+  устраняет расхождение истории от squash. Обновлены `CLAUDE.md` и skill `release-pr`.
 
 ---
 

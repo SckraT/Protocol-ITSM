@@ -30,38 +30,32 @@ gh pr create --base main --head beta \
 gh pr merge <N> --squash --delete-branch=false
 ```
 
-## After merge — sync local main AND reconcile beta
+## After merge — sync main, then RESET beta onto main
 
-Local `main` often has **no upstream set**, so a bare `git pull` won't fast-forward. Pull explicitly:
+Squash merge puts all of `beta`'s changes as **one new commit** on `main`; `beta`'s original commits become orphaned history. A permanent branch reused after a squash **always diverges**, and the *next* PR then fails with phantom conflicts. Avoid it entirely: **reset `beta` onto `main` after every release.** At this point `beta`'s content already equals `main` (everything was just merged), so nothing is lost.
 
 ```bash
 git checkout main
-git pull origin main          # explicit — fast-forwards to the squash commit
-git log --oneline -3          # confirm the squash commit is on top
-git diff main..origin/beta    # содержимое должно совпасть (см. ниже про reconcile)
-```
+git pull origin main             # explicit (main часто без upstream); fast-forward к squash-коммиту
+git log --oneline -3
 
-**Critical — reconcile `beta` with `main` after every squash merge.** Squash collapses all of `beta`'s commits into ONE new commit on `main`; `beta` still carries the original commits. So `beta` and `main` now have **divergent history with identical content**. If you keep committing to `beta` without reconciling, the divergence accumulates and the *next* PR fails to merge with phantom `add/add` conflicts (e.g. in `CHANGELOG.md`). Fix it immediately by recording `main` as merged into `beta` while keeping `beta`'s tree:
-
-```bash
 git checkout beta
-# Сначала убедиться, что main НЕ содержит правок, которых нет в beta:
-git diff beta..origin/main --stat   # ожидаем только «откат» к старому коду (то, что beta удалил)
-# Влить историю main, сохранив дерево beta без изменений:
-git merge -s ours origin/main -m "merge: вобрать историю main в beta (содержимое уже в beta)"
-git push
+git diff origin/main..beta --stat   # ДОЛЖНО быть пусто — всё влито.
+                                    # Если НЕ пусто → там невлитое, НЕ сбрасывать (доведи до релиза).
+git reset --hard origin/main
+git push --force-with-lease
 ```
 
-`-s ours` keeps `beta`'s tree byte-for-byte (verify: tree hash before == after) and just marks `main` as an ancestor — so the **next** `beta → main` PR diffs cleanly. Then resume work on `beta`.
+`beta` теперь стартует следующий цикл байт-в-байт как `main`, поэтому следующий `beta → main` PR — тривиальный чистый мердж. Никаких reconcile, `-s ours` и фантомных конфликтов.
 
-⚠️ `-s ours` is only safe when `beta` already contains all of `main`'s content (the normal case — `beta` was the source). If `git diff beta..origin/main` shows real changes `beta` lacks (e.g. a hotfix committed straight to `main`), do a **normal** `git merge origin/main` and resolve, instead of `-s ours`.
+**Почему reset, а не merge:** squash + долгоживущая переиспользуемая ветка — известный анти-паттерн (squash рассчитан на короткие ветки, которые удаляют). Reset держит истории `beta` и `main` идентичными каждый цикл. Безопасно здесь, потому что: (a) `beta` ведёт один мейнтейнер; (b) сброс делается только сразу после релиза, когда в `beta` нет невлитого; (c) `--force-with-lease` не затрёт неожиданные изменения на remote.
 
 ## Troubleshooting
 
-- **`gh pr merge` → "not mergeable: the merge commit cannot be cleanly created"** — almost always the squash-divergence above. Don't hand-resolve conflicts in the PR. Instead run the reconcile (`git merge -s ours origin/main` on `beta`, push), which makes `main` an ancestor of `beta`; the PR then becomes mergeable. Re-run `gh pr merge <N> --squash`.
-- **`gh pr create` transiently blocked** — retry, usually succeeds on the second attempt.
+- **`gh pr merge` → "not mergeable: the merge commit cannot be cleanly created"** — значит `beta` не сбросили после прошлого релиза и истории разошлись. Разовое восстановление (когда содержимое `beta` уже равно `main`): `git checkout beta && git reset --hard origin/main && git push --force-with-lease`, затем пересоздать/смерджить PR. (Если в `beta` есть реальные невлитые коммиты — вместо reset сделать `git merge origin/main`, разрешить, запушить.)
+- **`gh pr create` transiently blocked** — повторить, обычно проходит со второй попытки.
 
 ## Notes
 
-- **Never delete `beta`** — it is the permanent staging branch (`CLAUDE.md`).
-- The auto-classifier blocks direct pushes to `main`; the PR path is the only way in. That's intended.
+- **Never delete `beta`** — это постоянная staging-ветка (`CLAUDE.md`); после релиза её сбрасывают на `main`, а не удаляют.
+- Auto-classifier блокирует прямой push в `main`; путь только через PR. Так задумано.
