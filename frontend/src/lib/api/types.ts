@@ -47,10 +47,37 @@ export interface Item {
   priority: Priority | null;
   state: ItemState;
   due_date: string | null;
+  meeting_id: number | null;
+  meeting_title: string | null;
   created_at: string;
   executors: ExecutorInItem[];
   recent_statuses: StatusInItem[];
   status_count: number;
+}
+
+/** Совещание — группирует задачи по проекту/встрече. */
+export interface Meeting {
+  id: number;
+  title: string;
+  meeting_date: string | null;
+  description: string | null;
+  created_at: string;
+  participants: ExecutorInItem[];
+  item_count: number;
+}
+
+export interface MeetingCreatePayload {
+  title: string;
+  meeting_date?: string | null;
+  description?: string | null;
+  participant_ids?: number[];
+}
+
+export interface MeetingUpdatePayload {
+  title?: string;
+  meeting_date?: string | null;
+  description?: string | null;
+  participant_ids?: number[];
 }
 
 /** Постраничный ответ для списка задач. */
@@ -68,6 +95,7 @@ export interface ItemCreatePayload {
   priority?: Priority | null;
   state?: ItemState;
   due_date?: string | null;
+  meeting_id?: number | null;
   executor_ids?: number[];
   status_date?: string | null;
   status_note?: string | null;
@@ -80,5 +108,6 @@ export interface ItemUpdatePayload {
   priority?: Priority | null;
   state?: ItemState;
   due_date?: string | null;
+  meeting_id?: number | null;
   executor_ids?: number[];
 }

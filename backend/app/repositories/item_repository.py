@@ -30,6 +30,8 @@ class ItemRepository(BaseRepository[Item]):
                 selectinload(Item.executors).selectinload(Executor.department),
                 # Предзагружаем все статусы
                 selectinload(Item.statuses),
+                # Предзагружаем совещание (для meeting_title)
+                selectinload(Item.meeting),
             )
             .order_by(Item.id)
         )
@@ -48,6 +50,7 @@ class ItemRepository(BaseRepository[Item]):
         executor_id: int | None = None,
         department_id: int | None = None,
         priority: PriorityEnum | None = None,
+        meeting_id: int | None = None,
         offset: int = 0,
         limit: int = 1000,
     ) -> tuple[Sequence[Item], int]:
@@ -68,6 +71,15 @@ class ItemRepository(BaseRepository[Item]):
         if priority is not None:
             stmt = stmt.where(Item.priority == priority.value)
             count_stmt = count_stmt.where(Item.priority == priority.value)
+
+        # Фильтр по совещанию (0 — задачи без совещания)
+        if meeting_id is not None:
+            if meeting_id == 0:
+                stmt = stmt.where(Item.meeting_id.is_(None))
+                count_stmt = count_stmt.where(Item.meeting_id.is_(None))
+            else:
+                stmt = stmt.where(Item.meeting_id == meeting_id)
+                count_stmt = count_stmt.where(Item.meeting_id == meeting_id)
 
         # Полнотекстовый поиск по теме и тикету
         if search:

@@ -71,6 +71,12 @@ class ItemsStore {
       result = result.filter((i) => (i.priority ?? '') === f.filterPriority);
     }
 
+    // Фильтр по совещанию
+    if (f.filterMeeting) {
+      const mid = Number(f.filterMeeting);
+      result = result.filter((i) => i.meeting_id === mid);
+    }
+
     // Сортировка
     if (f.sortCol) {
       result = [...result].sort((a, b) => this.compare(a, b, f.sortCol!, f.sortDir));

@@ -53,6 +53,8 @@ def _serialize_item(item: Item) -> ItemResponse:
         priority=PriorityEnum(item.priority) if item.priority else None,
         state=StateEnum(item.state),
         due_date=item.due_date,
+        meeting_id=item.meeting_id,
+        meeting_title=item.meeting.title if item.meeting else None,
         created_at=item.created_at,
         executors=executors,
         recent_statuses=recent_statuses,
@@ -74,6 +76,7 @@ class ItemService:
         executor_id: int | None = None,
         department_id: int | None = None,
         priority: PriorityEnum | None = None,
+        meeting_id: int | None = None,
         page: int = 1,
         page_size: int = 1000,
     ) -> PaginatedResponse[ItemResponse]:
@@ -85,6 +88,7 @@ class ItemService:
             executor_id=executor_id,
             department_id=department_id,
             priority=priority,
+            meeting_id=meeting_id,
             offset=offset,
             limit=page_size,
         )
@@ -110,6 +114,7 @@ class ItemService:
             priority=data.priority.value if data.priority else None,
             state=data.state.value,
             due_date=data.due_date,
+            meeting_id=data.meeting_id,
         )
         created = await self.repo.create(item)
 
@@ -153,6 +158,11 @@ class ItemService:
             await self.repo.update_executors(item, executor_ids)
 
         await self.repo.session.flush()
+
+        # Если менялась привязка к совещанию — сбрасываем закешированное отношение,
+        # чтобы selectinload при перезагрузке подтянул актуальное meeting (и meeting_title).
+        if "meeting_id" in update_data:
+            self.repo.session.expire(item, ["meeting"])
 
         # Перезагружаем с обновлёнными связями
         updated = await self.repo.get_with_relations(item_id)

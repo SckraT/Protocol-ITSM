@@ -1,15 +1,17 @@
 <script lang="ts">
   // Форма задачи: поля + мультивыбор исполнителей, сгруппированных по отделам.
+  // Кнопки «Сохранить»/«Удалить» вынесены в ItemDrawer (после блока статусов)
+  // и связаны с этой формой через атрибут form="item-edit-form".
   import { untrack } from 'svelte';
   import type { Item, ItemState, Priority } from '$lib/api/types';
-  import Button from '$lib/components/ui/Button.svelte';
-  import { refsStore } from '$lib/stores/refs.svelte';
   import { STATE_LABEL, STATE_ORDER, PRIORITY_CONFIG } from '$lib/utils/constants';
+  import { meetingsStore } from '$lib/stores/meetings.svelte';
+  import ExecutorMultiSelect from './ExecutorMultiSelect.svelte';
 
   let {
     item = null,
     onSave,
-    onDelete
+    saving = $bindable(false)
   }: {
     item?: Item | null;
     onSave: (data: {
@@ -18,9 +20,10 @@
       priority: Priority | null;
       state: ItemState;
       due_date: string | null;
+      meeting_id: number | null;
       executor_ids: number[];
     }) => Promise<void>;
-    onDelete?: () => void;
+    saving?: boolean;
   } = $props();
 
   // Начальные значения формы. Захватываем единожды через untrack — форма
@@ -31,6 +34,7 @@
     priority: (item?.priority ?? '') as string,
     state: (item?.state ?? 'in_progress') as ItemState,
     dueDate: item?.due_date ?? '',
+    meeting: item?.meeting_id != null ? String(item.meeting_id) : '',
     executorIds: new Set(item?.executors.map((e) => e.id) ?? [])
   }));
 
@@ -39,18 +43,10 @@
   let priority = $state<string>(init.priority);
   let stateVal = $state<ItemState>(init.state);
   let dueDate = $state(init.dueDate);
+  let meetingVal = $state<string>(init.meeting);
   let selectedExecutors = $state<Set<number>>(init.executorIds);
-  let saving = $state(false);
 
-  // Исполнители, сгруппированные по отделам
-  const grouped = $derived(refsStore.executorsByDepartment);
-
-  function toggleExecutor(id: number) {
-    const next = new Set(selectedExecutors);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    selectedExecutors = next;
-  }
+  const meetings = $derived(meetingsStore.all);
 
   async function submit() {
     if (!topic.trim()) return;
@@ -62,6 +58,7 @@
         priority: (priority || null) as Priority | null,
         state: stateVal,
         due_date: dueDate || null,
+        meeting_id: meetingVal ? Number(meetingVal) : null,
         executor_ids: [...selectedExecutors]
       });
     } finally {
@@ -75,6 +72,7 @@
 </script>
 
 <form
+  id="item-edit-form"
   class="flex flex-col gap-4"
   onsubmit={(e) => {
     e.preventDefault();
@@ -120,41 +118,17 @@
     </div>
   </div>
 
-  <!-- Исполнители -->
+  <!-- Совещание -->
   <div class="flex flex-col gap-1">
-    <span class={labelClass}>Исполнители</span>
-    <div class="max-h-48 overflow-y-auto rounded-md border border-[var(--border)] p-2">
-      {#each [...grouped.entries()] as [deptName, execs] (deptName)}
-        <div class="mb-2">
-          <div class="mb-1 text-xs font-semibold text-[var(--text-secondary)]">{deptName}</div>
-          <div class="flex flex-wrap gap-2">
-            {#each execs as exec (exec.id)}
-              <label
-                class="inline-flex cursor-pointer items-center gap-1 rounded border border-[var(--border)] px-2 py-1 text-sm hover:bg-[var(--table-hover)]"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedExecutors.has(exec.id)}
-                  onchange={() => toggleExecutor(exec.id)}
-                />
-                {exec.name}
-              </label>
-            {/each}
-          </div>
-        </div>
-      {:else}
-        <p class="text-sm text-[var(--text-secondary)]">Нет исполнителей в справочнике</p>
+    <label for="f-meeting" class={labelClass}>Совещание</label>
+    <select id="f-meeting" bind:value={meetingVal} class={fieldClass}>
+      <option value="">— Без совещания —</option>
+      {#each meetings as m (m.id)}
+        <option value={String(m.id)}>{m.title}</option>
       {/each}
-    </div>
+    </select>
   </div>
 
-  <!-- Кнопки -->
-  <div class="flex items-center justify-between">
-    {#if onDelete}
-      <Button variant="danger" size="sm" onclick={onDelete}>Удалить</Button>
-    {:else}
-      <span></span>
-    {/if}
-    <Button type="submit" disabled={saving}>{item ? 'Сохранить' : 'Создать'}</Button>
-  </div>
+  <!-- Исполнители — поисковый мультиселект -->
+  <ExecutorMultiSelect bind:selected={selectedExecutors} />
 </form>

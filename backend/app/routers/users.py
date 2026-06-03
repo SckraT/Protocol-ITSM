@@ -1,0 +1,105 @@
+"""
+Роутер управления пользователями (только Admin).
+CRUD операции: список, создание, обновление роли/статуса/пароля, удаление.
+"""
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.dependencies import require_admin
+from app.models.user import User
+from app.repositories.user_repository import UserRepository
+from app.schemas.user import UserCreate, UserResponse, UserUpdate
+from app.security import hash_password
+
+router = APIRouter(prefix="/users", tags=["Пользователи"])
+
+
+@router.get("", response_model=list[UserResponse], summary="Список пользователей")
+async def list_users(
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Вернуть всех пользователей. Только Admin."""
+    repo = UserRepository(db)
+    users = await repo.list(limit=1000)
+    return users
+
+
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED, summary="Создать пользователя")
+async def create_user(
+    body: UserCreate,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Создать нового пользователя. Только Admin."""
+    repo = UserRepository(db)
+
+    # Проверка уникальности username
+    existing = await repo.get_by_username(body.username)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Пользователь '{body.username}' уже существует",
+        )
+
+    user = User(
+        username=body.username,
+        hashed_password=hash_password(body.password),
+        role=body.role,
+        is_active=True,
+    )
+    return await repo.create(user)
+
+
+@router.patch("/{user_id}", response_model=UserResponse, summary="Обновить пользователя")
+async def update_user(
+    user_id: int,
+    body: UserUpdate,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Обновить роль, статус или пароль пользователя. Только Admin."""
+    repo = UserRepository(db)
+    user = await repo.get(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+
+    # Нельзя изменить роль или заблокировать себя
+    if user_id == admin.id and (body.role is not None or body.is_active is False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Нельзя изменить роль или заблокировать собственный аккаунт",
+        )
+
+    if body.role is not None:
+        user.role = body.role
+    if body.is_active is not None:
+        user.is_active = body.is_active
+    if body.password is not None:
+        user.hashed_password = hash_password(body.password)
+
+    await repo.session.flush()
+    await repo.session.refresh(user)
+    return user
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Удалить пользователя")
+async def delete_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Удалить пользователя. Только Admin. Нельзя удалить себя."""
+    if user_id == admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Нельзя удалить собственный аккаунт",
+        )
+
+    repo = UserRepository(db)
+    user = await repo.get(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+
+    await repo.delete(user)

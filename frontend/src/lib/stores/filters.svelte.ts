@@ -10,6 +10,7 @@ interface PersistedFilters {
   filterDept?: string;
   filterExec?: string;
   filterPriority?: string;
+  filterMeeting?: string;
   pageSize?: number;
   sortCol?: string | null;
   sortDir?: SortDir;
@@ -33,6 +34,7 @@ class FiltersStore {
   filterDept = $state<string>(this.saved.filterDept ?? '');
   filterExec = $state<string>(this.saved.filterExec ?? '');
   filterPriority = $state<string>(this.saved.filterPriority ?? '');
+  filterMeeting = $state<string>(this.saved.filterMeeting ?? '');
   pageSize = $state<number>(this.saved.pageSize ?? 20);
   currentPage = $state<number>(1);
   sortCol = $state<string | null>(this.saved.sortCol ?? null);
@@ -40,7 +42,11 @@ class FiltersStore {
 
   /** Активен ли хоть один фильтр (для показа кнопки «Сбросить»). */
   hasActiveFilters = $derived(
-    !!this.searchQuery || !!this.filterDept || !!this.filterExec || !!this.filterPriority
+    !!this.searchQuery ||
+      !!this.filterDept ||
+      !!this.filterExec ||
+      !!this.filterPriority ||
+      !!this.filterMeeting
   );
 
   /** Сохраняет текущее состояние фильтров в localStorage. */
@@ -53,6 +59,7 @@ class FiltersStore {
         filterDept: this.filterDept,
         filterExec: this.filterExec,
         filterPriority: this.filterPriority,
+        filterMeeting: this.filterMeeting,
         pageSize: this.pageSize,
         sortCol: this.sortCol,
         sortDir: this.sortDir
@@ -69,6 +76,7 @@ class FiltersStore {
     this.filterDept = '';
     this.filterExec = '';
     this.filterPriority = '';
+    this.filterMeeting = '';
     this.currentPage = 1;
     this.persist();
   }

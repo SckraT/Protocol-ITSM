@@ -2,6 +2,8 @@
 Протокол совещания v2.0 — точка входа FastAPI-приложения.
 
 Структура:
+  - /api/auth          — аутентификация (login, refresh, me)
+  - /api/users         — управление пользователями (только Admin)
   - /api/departments   — справочник отделов
   - /api/executors     — справочник исполнителей
   - /api/items         — задачи протокола
@@ -23,12 +25,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
-from app.database import engine
+from app.database import engine, get_db
+from app.routers.auth import router as auth_router
 from app.routers.departments import router as departments_router
 from app.routers.executors import router as executors_router
 from app.routers.export import import_router, router as export_router
 from app.routers.items import router as items_router
+from app.routers.meetings import router as meetings_router
 from app.routers.statuses import router as statuses_router
+from app.routers.users import router as users_router
 
 settings = get_settings()
 
@@ -58,10 +63,42 @@ async def lifespan(app: FastAPI):
     else:
         print("[alembic] Миграции применены успешно", flush=True)
 
+    # Seed первого Admin (если таблица users пуста)
+    await _seed_first_admin()
+
     yield
 
     # Закрываем соединения при остановке
     await engine.dispose()
+
+
+async def _seed_first_admin() -> None:
+    """
+    Создать первого Admin, если пользователей ещё нет.
+    Использует прямой async_session (не get_db), чтобы явно вызвать commit.
+    get_db — генератор; break не вызывает код после yield, commit не выполняется.
+    """
+    from app.database import async_session as make_session
+    from app.repositories.user_repository import UserRepository
+    from app.services.auth_service import AuthService
+
+    async with make_session() as session:
+        try:
+            repo = UserRepository(session)
+            count = await repo.count_all()
+            if count == 0:
+                service = AuthService(session)
+                user = await service.create_first_admin(
+                    username=settings.FIRST_ADMIN_USERNAME,
+                    password=settings.FIRST_ADMIN_PASSWORD,
+                )
+                await session.commit()
+                print(f"[auth] Создан первый Admin: {user.username}", flush=True)
+            else:
+                print(f"[auth] Пользователи уже существуют ({count}), пропускаем seed", flush=True)
+        except Exception as exc:
+            await session.rollback()
+            print(f"[auth] Ошибка при создании первого Admin: {exc}", flush=True)
 
 
 # Инициализация FastAPI
@@ -85,9 +122,12 @@ app.add_middleware(
 )
 
 # Подключаем все роутеры с префиксом /api
+app.include_router(auth_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
 app.include_router(departments_router, prefix="/api")
 app.include_router(executors_router, prefix="/api")
 app.include_router(items_router, prefix="/api")
+app.include_router(meetings_router, prefix="/api")
 app.include_router(statuses_router, prefix="/api")
 app.include_router(export_router, prefix="/api")
 app.include_router(import_router, prefix="/api")

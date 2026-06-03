@@ -3,6 +3,7 @@
   import { X } from 'lucide-svelte';
   import { filtersStore } from '$lib/stores/filters.svelte';
   import { refsStore } from '$lib/stores/refs.svelte';
+  import { meetingsStore } from '$lib/stores/meetings.svelte';
   import { PRIORITY_CONFIG } from '$lib/utils/constants';
 
   function onChange() {
@@ -47,6 +48,18 @@
     <option value="">Любой приоритет</option>
     {#each Object.entries(PRIORITY_CONFIG) as [key, cfg] (key)}
       <option value={key}>{cfg.label}</option>
+    {/each}
+  </select>
+
+  <select
+    bind:value={filtersStore.filterMeeting}
+    onchange={onChange}
+    class={selectClass}
+    aria-label="Совещание"
+  >
+    <option value="">Все совещания</option>
+    {#each meetingsStore.all as m (m.id)}
+      <option value={String(m.id)}>{m.title}</option>
     {/each}
   </select>
 

@@ -12,6 +12,7 @@
     disabled = false,
     title = '',
     ariaLabel = '',
+    form = '',
     onclick,
     children
   }: {
@@ -21,6 +22,7 @@
     disabled?: boolean;
     title?: string;
     ariaLabel?: string;
+    form?: string;
     onclick?: (e: MouseEvent) => void;
     children: Snippet;
   } = $props();
@@ -41,6 +43,7 @@
   {type}
   {disabled}
   {title}
+  form={form || undefined}
   aria-label={ariaLabel || undefined}
   class="inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 {variantClasses[variant]} {sizeClasses[size]}"
   {onclick}

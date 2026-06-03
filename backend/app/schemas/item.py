@@ -34,6 +34,7 @@ class ItemCreate(BaseModel):
     priority: PriorityEnum | None = Field(None, description="Приоритет")
     state: StateEnum = Field(StateEnum.in_progress, description="Состояние задачи")
     due_date: date | None = Field(None, description="Срок выполнения")
+    meeting_id: int | None = Field(None, description="ID совещания (опционально)")
     executor_ids: list[int] = Field(default_factory=list, description="ID исполнителей")
     # Начальный статус (опционально, добавляется вместе с задачей)
     status_date: date | None = Field(None, description="Дата начального статуса")
@@ -48,6 +49,7 @@ class ItemUpdate(BaseModel):
     priority: PriorityEnum | None = None
     state: StateEnum | None = None
     due_date: date | None = None
+    meeting_id: int | None = Field(None, description="ID совещания (null — отвязать)")
     executor_ids: list[int] | None = Field(None, description="Новый список ID исполнителей")
 
 
@@ -60,6 +62,8 @@ class ItemResponse(BaseModel):
     priority: PriorityEnum | None
     state: StateEnum
     due_date: date | None
+    meeting_id: int | None = None
+    meeting_title: str | None = None
     created_at: datetime
     executors: list[ExecutorInItem] = []
     recent_statuses: list[StatusInItem] = []

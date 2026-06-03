@@ -20,6 +20,16 @@ class Settings(BaseSettings):
     # Разрешённые источники для CORS (через запятую)
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:8000"
 
+    # JWT-аутентификация
+    SECRET_KEY: str = "change-me-in-production-use-strong-random-key"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # Первый Admin (создаётся автоматически при первом запуске)
+    FIRST_ADMIN_USERNAME: str = "admin"
+    FIRST_ADMIN_PASSWORD: str = "admin"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

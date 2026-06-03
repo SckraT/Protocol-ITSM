@@ -13,6 +13,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import { exportCsv, exportXlsx, importCsv } from '$lib/api/export';
   import { itemsStore } from '$lib/stores/items.svelte';
+  import { filtersStore } from '$lib/stores/filters.svelte';
   import { toastStore } from '$lib/stores/toast.svelte';
 
   // Состояние drawer'а
@@ -37,7 +38,7 @@
     goto('/', { replaceState: true, keepFocus: true, noScroll: true });
   }
 
-  // Открываем задачу по ?task=N из URL (при загрузке / прямой ссылке)
+  // Открываем задачу по ?task=N и применяем фильтр по ?meeting=N из URL
   onMount(() => {
     const taskParam = $page.url.searchParams.get('task');
     if (taskParam) {
@@ -46,6 +47,14 @@
         drawerItemId = id;
         drawerOpen = true;
       }
+    }
+
+    // Фильтр по совещанию из ссылки (переход со страницы /meetings)
+    const meetingParam = $page.url.searchParams.get('meeting');
+    if (meetingParam && !Number.isNaN(Number(meetingParam))) {
+      filtersStore.filterMeeting = meetingParam;
+      filtersStore.currentPage = 1;
+      filtersStore.persist();
     }
   });
 

@@ -5,6 +5,7 @@
   import { fetchItem } from '$lib/api/items';
   import { addStatus, deleteStatus, fetchStatuses } from '$lib/api/statuses';
   import Drawer from '$lib/components/ui/Drawer.svelte';
+  import Button from '$lib/components/ui/Button.svelte';
   import ItemForm from './ItemForm.svelte';
   import Timeline from './Timeline.svelte';
   import { itemsStore } from '$lib/stores/items.svelte';
@@ -26,6 +27,8 @@
   const isEdit = $derived(itemId !== null);
 
   let statuses = $state<Status[]>([]);
+  // Состояние сохранения формы (биндится из ItemForm для блокировки кнопки)
+  let saving = $state(false);
 
   // Загружаем статусы при открытии существующей задачи
   $effect(() => {
@@ -51,6 +54,7 @@
     priority: Priority | null;
     state: ItemState;
     due_date: string | null;
+    meeting_id: number | null;
     executor_ids: number[];
   }) {
     if (isEdit && itemId !== null) {
@@ -133,11 +137,23 @@
   {/if}
 
   {#key itemId}
-    <ItemForm {item} onSave={handleSave} onDelete={isEdit ? handleDelete : undefined} />
+    <ItemForm {item} onSave={handleSave} bind:saving />
   {/key}
 
   {#if isEdit}
     <hr class="my-5 border-[var(--border)]" />
     <Timeline {statuses} onAdd={handleAddStatus} onDelete={handleDeleteStatus} />
   {/if}
+
+  <!-- Кнопки действий — после блока статусов -->
+  <div class="mt-5 flex items-center justify-between border-t border-[var(--border)] pt-4">
+    {#if isEdit}
+      <Button variant="danger" size="sm" onclick={handleDelete}>Удалить</Button>
+    {:else}
+      <span></span>
+    {/if}
+    <Button type="submit" form="item-edit-form" disabled={saving}>
+      {isEdit ? 'Сохранить' : 'Создать'}
+    </Button>
+  </div>
 </Drawer>

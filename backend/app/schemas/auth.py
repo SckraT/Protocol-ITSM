@@ -1,0 +1,38 @@
+"""
+Pydantic-схемы для аутентификации: запросы и ответы.
+"""
+from pydantic import BaseModel
+
+from app.models.user import RoleEnum
+
+
+class LoginRequest(BaseModel):
+    """Запрос на вход: логин + пароль."""
+
+    username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """Ответ с JWT-токенами."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    username: str
+    role: RoleEnum
+
+
+class RefreshRequest(BaseModel):
+    """Запрос обновления токена."""
+
+    refresh_token: str
+
+
+class MeResponse(BaseModel):
+    """Информация о текущем пользователе."""
+
+    id: int
+    username: str
+    role: RoleEnum
+    is_active: bool

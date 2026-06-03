@@ -2,13 +2,14 @@
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, String, Text
+from sqlalchemy import Date, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.executor import Executor
+    from app.models.meeting import Meeting
     from app.models.status import Status
 
 
@@ -24,11 +25,23 @@ class Item(Base):
     state: Mapped[str] = mapped_column(String(20), nullable=False, default="in_progress", index=True)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
+    # FK на совещание (опционально). При удалении совещания → NULL.
+    meeting_id: Mapped[int | None] = mapped_column(
+        ForeignKey("meetings.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Сохраняем старое поле для совместимости при миграции данных из v1
     # ORM не использует это поле — только скрипт migrate_data.py
     executors_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Связи
+    meeting: Mapped["Meeting | None"] = relationship(
+        "Meeting",
+        back_populates="items",
+        lazy="selectin",
+    )
     executors: Mapped[list["Executor"]] = relationship(
         "Executor",
         secondary="item_executors",
