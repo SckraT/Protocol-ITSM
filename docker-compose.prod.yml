@@ -1,0 +1,38 @@
+# Продакшн-конфигурация для деплоя на VPS за Nginx.
+# Отличие от docker-compose.yml: порт привязан к 127.0.0.1 (наружу только через Nginx).
+#
+# Запуск (использовать ИМЕННО этот файл, не поверх базового):
+#   cp .env.example .env   # и заполнить SECRET_KEY / FIRST_ADMIN_*
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Обновление:
+#   git pull && docker compose -f docker-compose.prod.yml up -d --build
+services:
+  protocol:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      # Только локальный интерфейс — публичный доступ идёт через Nginx reverse-proxy.
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DB_PATH=/app/data/protocol.db
+    # Секреты — в .env (см. .env.example). В проде файл обязателен.
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      # python:3.12-slim не содержит curl — проверяем через urllib
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

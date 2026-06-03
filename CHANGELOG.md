@@ -5,6 +5,22 @@
 
 ---
 
+## [Unreleased]
+
+### Изменено
+- Секреты (`SECRET_KEY`, `FIRST_ADMIN_*`) вынесены из `docker-compose.yml` в `.env`
+  (через `env_file` с `required: false`); добавлен `.env.example`.
+
+### Добавлено
+- `deploy/nginx.conf` — пример reverse-proxy для деплоя на VPS (Nginx + Certbot/HTTPS).
+- `docker-compose.prod.yml` — самодостаточная прод-конфигурация (порт привязан к
+  `127.0.0.1`, наружу только через Nginx; `.env` обязателен).
+- `DEPLOY.md` — пошаговая инструкция деплоя на VPS (Ubuntu) за Nginx + HTTPS.
+- Внутренняя чистка после ревью: общий `_decode` для JWT, общий `ROLE_LABEL`,
+  guard `require_admin` на уровне роутера `/users`, удаление мёртвого кода.
+
+---
+
 ## [2.2.0] — 2026-06-03
 
 ### Добавлено
