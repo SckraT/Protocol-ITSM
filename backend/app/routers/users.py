@@ -12,14 +12,12 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.security import hash_password
 
-router = APIRouter(prefix="/users", tags=["Пользователи"])
+# Весь роутер доступен только Admin — guard на уровне роутера.
+router = APIRouter(prefix="/users", tags=["Пользователи"], dependencies=[Depends(require_admin)])
 
 
 @router.get("", response_model=list[UserResponse], summary="Список пользователей")
-async def list_users(
-    db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_admin),
-):
+async def list_users(db: AsyncSession = Depends(get_db)):
     """Вернуть всех пользователей. Только Admin."""
     repo = UserRepository(db)
     users = await repo.list(limit=1000)
@@ -30,7 +28,6 @@ async def list_users(
 async def create_user(
     body: UserCreate,
     db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(require_admin),
 ):
     """Создать нового пользователя. Только Admin."""
     repo = UserRepository(db)

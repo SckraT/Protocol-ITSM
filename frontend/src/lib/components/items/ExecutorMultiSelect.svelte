@@ -22,9 +22,6 @@
   let container: HTMLDivElement;
   let searchInput = $state<HTMLInputElement | null>(null);
 
-  // Все исполнители (для чипов — быстрый доступ по id)
-  const byId = $derived(new Map(refsStore.executors.map((e) => [e.id, e])));
-
   // Выбранные исполнители (в порядке справочника)
   const selectedList = $derived(refsStore.executors.filter((e) => selected.has(e.id)));
 

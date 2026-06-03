@@ -52,29 +52,23 @@ def create_refresh_token(username: str) -> str:
     )
 
 
-def decode_access_token(token: str) -> dict | None:
-    """
-    Декодировать и верифицировать access-токен.
-    Возвращает payload или None при ошибке.
-    """
+def _decode(token: str, expected_type: str) -> dict | None:
+    """Декодировать токен и проверить тип. None при ошибке/несовпадении типа."""
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
-        if payload.get("type") != "access":
+        if payload.get("type") != expected_type:
             return None
         return payload
     except JWTError:
         return None
 
 
+def decode_access_token(token: str) -> dict | None:
+    """Декодировать access-токен. Возвращает payload или None при ошибке."""
+    return _decode(token, "access")
+
+
 def decode_refresh_token(token: str) -> str | None:
-    """
-    Декодировать refresh-токен.
-    Возвращает username или None при ошибке.
-    """
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
-        if payload.get("type") != "refresh":
-            return None
-        return payload.get("sub")
-    except JWTError:
-        return None
+    """Декодировать refresh-токен. Возвращает username (sub) или None при ошибке."""
+    payload = _decode(token, "refresh")
+    return payload.get("sub") if payload else None

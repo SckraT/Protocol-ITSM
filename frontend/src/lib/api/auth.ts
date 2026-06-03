@@ -2,6 +2,13 @@
 
 export type Role = 'viewer' | 'editor' | 'admin';
 
+/** Человекочитаемые названия ролей (RU). */
+export const ROLE_LABEL: Record<Role, string> = {
+  viewer: 'Просмотр',
+  editor: 'Редактор',
+  admin: 'Администратор'
+};
+
 export interface TokenResponse {
   access_token: string;
   refresh_token: string;

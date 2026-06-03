@@ -12,17 +12,6 @@ class MeetingsStore {
   all = $state<Meeting[]>([]);
   loading = $state(false);
 
-  /** Совещание по ID. */
-  byId(id: number): Meeting | undefined {
-    return this.all.find((m) => m.id === id);
-  }
-
-  /** Название совещания по ID. */
-  titleById(id: number | null): string | null {
-    if (id === null) return null;
-    return this.byId(id)?.title ?? null;
-  }
-
   /** Загрузить все совещания. */
   async load(): Promise<void> {
     this.loading = true;

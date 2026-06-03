@@ -13,6 +13,7 @@
   import { refsStore } from '$lib/stores/refs.svelte';
   import { meetingsStore } from '$lib/stores/meetings.svelte';
   import { authStore } from '$lib/stores/auth.svelte';
+  import { ROLE_LABEL } from '$lib/api/auth';
 
   let { children } = $props();
 
@@ -49,13 +50,6 @@
     { href: '/meetings', label: 'Совещания' },
     { href: '/refs', label: 'Справочники' }
   ];
-
-  // Метка роли для отображения в header
-  const ROLE_LABEL: Record<string, string> = {
-    admin: 'Администратор',
-    editor: 'Редактор',
-    viewer: 'Просмотр'
-  };
 </script>
 
 {#if isLoginPage}

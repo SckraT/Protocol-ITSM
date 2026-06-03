@@ -25,7 +25,11 @@
   let formError = $state('');
 
   onMount(async () => {
-    await Promise.all([meetingsStore.load(), refsStore.executors.length ? Promise.resolve() : refsStore.load()]);
+    // Совещания/исполнители уже грузит корневой layout — добираем только недостающее.
+    await Promise.all([
+      meetingsStore.all.length ? Promise.resolve() : meetingsStore.load(),
+      refsStore.executors.length ? Promise.resolve() : refsStore.load()
+    ]);
   });
 
   const meetings = $derived(meetingsStore.all);

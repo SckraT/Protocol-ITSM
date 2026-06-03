@@ -6,8 +6,9 @@
   import { Pencil, Trash2, Plus, ShieldCheck, Eye, FilePen } from 'lucide-svelte';
   import { authStore } from '$lib/stores/auth.svelte';
   import { toastStore } from '$lib/stores/toast.svelte';
+  import { confirmStore } from '$lib/stores/confirm.svelte';
   import { apiGet, apiPost, apiPatch, apiDelete } from '$lib/api/client';
-  import type { UserResponse, UserCreate, UserUpdate, Role } from '$lib/api/auth';
+  import { ROLE_LABEL, type UserResponse, type UserCreate, type UserUpdate, type Role } from '$lib/api/auth';
   import Modal from '$lib/components/ui/Modal.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
@@ -30,23 +31,13 @@
   let editPassword = $state('');
   let editIsActive = $state(true);
 
-  const roleOptions = [
-    { value: 'viewer', label: 'Просмотр' },
-    { value: 'editor', label: 'Редактор' },
-    { value: 'admin', label: 'Администратор' }
-  ];
+  const roleOptions = (Object.keys(ROLE_LABEL) as Role[]).map((value) => ({ value, label: ROLE_LABEL[value] }));
 
   // В Svelte 5 Runes-режиме динамические компоненты рендерятся через переменную напрямую
   const ROLE_ICON: Record<Role, typeof Eye> = {
     viewer: Eye,
     editor: FilePen,
     admin: ShieldCheck
-  };
-
-  const ROLE_LABEL: Record<Role, string> = {
-    viewer: 'Просмотр',
-    editor: 'Редактор',
-    admin: 'Администратор'
   };
 
   onMount(async () => {
@@ -128,7 +119,13 @@
   }
 
   async function handleDelete(user: UserResponse): Promise<void> {
-    if (!confirm(`Удалить пользователя «${user.username}»?`)) return;
+    const ok = await confirmStore.ask({
+      title: 'Удалить пользователя?',
+      message: `Пользователь «${user.username}» будет удалён.`,
+      confirmLabel: 'Удалить',
+      danger: true
+    });
+    if (!ok) return;
     try {
       await apiDelete(`/users/${user.id}`);
       users = users.filter((u) => u.id !== user.id);

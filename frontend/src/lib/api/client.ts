@@ -107,21 +107,23 @@ export async function apiGet<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
+
 /** POST-запрос с JSON-телом. */
 export async function apiPost<T>(path: string, body: unknown, allow: number[] = []): Promise<T> {
-  const res = await apiFetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, allow);
+  const res = await apiFetch(path, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(body) }, allow);
   return res.json() as Promise<T>;
 }
 
 /** PATCH-запрос с JSON-телом. */
 export async function apiPatch<T>(path: string, body: unknown, allow: number[] = []): Promise<T> {
-  const res = await apiFetch(path, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, allow);
+  const res = await apiFetch(path, { method: 'PATCH', headers: JSON_HEADERS, body: JSON.stringify(body) }, allow);
   return res.json() as Promise<T>;
 }
 
 /** PUT-запрос с JSON-телом. */
 export async function apiPut<T>(path: string, body: unknown, allow: number[] = []): Promise<T> {
-  const res = await apiFetch(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, allow);
+  const res = await apiFetch(path, { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify(body) }, allow);
   return res.json() as Promise<T>;
 }
 
