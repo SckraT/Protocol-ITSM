@@ -74,12 +74,16 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
-    # Нельзя изменить роль или заблокировать себя
-    if user_id == admin.id and (body.role is not None or body.is_active is False):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Нельзя изменить роль или заблокировать собственный аккаунт",
-        )
+    # Нельзя изменить роль или заблокировать себя — проверяем РЕАЛЬНОЕ изменение,
+    # а не сам факт передачи поля (форма всегда шлёт текущие role/is_active).
+    if user_id == admin.id:
+        changing_role = body.role is not None and body.role != user.role
+        blocking_self = body.is_active is False and user.is_active
+        if changing_role or blocking_self:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Нельзя изменить роль или заблокировать собственный аккаунт",
+            )
 
     if body.role is not None:
         user.role = body.role
