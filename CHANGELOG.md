@@ -9,6 +9,27 @@
 
 ---
 
+## [2.3.0] — 2026-06-04
+
+### Изменено
+- **База данных переведена с SQLite на PostgreSQL 16.**
+  - Driver `aiosqlite` заменён на `asyncpg` + `psycopg2-binary`.
+  - `docker-compose.yml`, `docker-compose.prod.yml`, `docker-compose.dev.yml` — добавлен
+    сервис `postgres:16-alpine`; бэкенд ждёт его `healthcheck` через `depends_on`.
+  - `config.py` — `DB_PATH` убран, `DATABASE_URL` теперь явная env-var
+    (`postgresql+asyncpg://...`).
+  - `database.py` — убрана SQLite-специфика (PRAGMA FK, `check_same_thread`, `timeout`);
+    добавлен connection pool (`pool_size=5, max_overflow=10`).
+  - `alembic/env.py` — убран `render_as_batch=True` (нужен только для SQLite ALTER).
+  - Миграция `0001`: убраны `PRAGMA journal_mode=WAL` и `PRAGMA foreign_keys=ON`.
+  - Миграция `0003`: колонка `items.meeting_id` теперь добавляется с полноценным
+    FK-констрейнтом (на SQLite это было невозможно через ALTER TABLE).
+  - Данные хранятся в Docker volume `postgres-data` (вместо `./data/protocol.db`).
+- `.env.example` — добавлен `POSTGRES_PASSWORD`.
+- `DEPLOY.md` — обновлены инструкции деплоя (новый сервис, бэкап через `pg_dump`).
+
+---
+
 ## [2.2.2] — 2026-06-03
 
 ### Безопасность

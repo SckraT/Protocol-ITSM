@@ -2,6 +2,20 @@
 # Бэкенд: http://localhost:8000  (API + Swagger)
 # Фронтенд: http://localhost:5173 (Svelte dev server с HMR)
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: protocol
+      POSTGRES_USER: protocol
+      POSTGRES_PASSWORD: protocol
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U protocol"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: .
@@ -10,11 +24,13 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app/backend   # hot-reload при изменении Python-файлов
-      - ./data:/app/data
     environment:
-      - DB_PATH=/app/data/protocol.db
+      - DATABASE_URL=postgresql+asyncpg://protocol:protocol@postgres:5432/protocol
       - DEBUG=true
       - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     image: node:20-alpine
@@ -27,3 +43,6 @@ services:
       - /app/node_modules         # исключаем node_modules из volume
     environment:
       - VITE_API_BASE_URL=http://localhost:8000/api
+
+volumes:
+  postgres-dev-data:

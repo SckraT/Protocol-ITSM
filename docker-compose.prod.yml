@@ -2,12 +2,27 @@
 # Отличие от docker-compose.yml: порт привязан к 127.0.0.1 (наружу только через Nginx).
 #
 # Запуск (использовать ИМЕННО этот файл, не поверх базового):
-#   cp .env.example .env   # и заполнить SECRET_KEY / FIRST_ADMIN_*
+#   cp .env.example .env   # и заполнить SECRET_KEY, FIRST_ADMIN_*, POSTGRES_PASSWORD
 #   docker compose -f docker-compose.prod.yml up -d --build
 #
 # Обновление:
 #   git pull && docker compose -f docker-compose.prod.yml up -d --build
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: protocol
+      POSTGRES_USER: protocol
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U protocol"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   protocol:
     build:
       context: .
@@ -15,13 +30,14 @@ services:
     ports:
       # Только локальный интерфейс — публичный доступ идёт через Nginx reverse-proxy.
       - "127.0.0.1:8000:8000"
-    volumes:
-      - ./data:/app/data
     environment:
-      - DB_PATH=/app/data/protocol.db
+      - DATABASE_URL=postgresql+asyncpg://protocol:${POSTGRES_PASSWORD}@postgres:5432/protocol
     # Секреты — в .env (см. .env.example). В проде файл обязателен.
     env_file:
       - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       # python:3.12-slim не содержит curl — проверяем через urllib
@@ -35,4 +51,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 20s
+
+volumes:
+  postgres-data:

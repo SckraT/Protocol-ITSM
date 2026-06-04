@@ -3,7 +3,6 @@
 Значения загружаются из переменных окружения или .env файла.
 """
 from functools import lru_cache
-from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,8 +10,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Настройки приложения."""
 
-    # Путь к базе данных SQLite
-    DB_PATH: str = str(Path(__file__).parent.parent.parent / "data" / "protocol.db")
+    # URL подключения к PostgreSQL (asyncpg-driver)
+    DATABASE_URL: str = "postgresql+asyncpg://protocol:protocol@localhost:5432/protocol"
 
     # Режим отладки
     DEBUG: bool = False
@@ -36,11 +35,6 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
-
-    @property
-    def DATABASE_URL(self) -> str:
-        """Формирует URL для SQLAlchemy async driver."""
-        return f"sqlite+aiosqlite:///{self.DB_PATH}"
 
     @property
     def cors_origins(self) -> list[str]:

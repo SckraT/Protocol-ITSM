@@ -27,10 +27,6 @@ def upgrade() -> None:
     базе v1 (создаётся только новая таблица item_executors — см. MIGRATION_GUIDE).
     """
 
-    # Включаем WAL-режим и внешние ключи для SQLite
-    op.execute("PRAGMA journal_mode=WAL")
-    op.execute("PRAGMA foreign_keys=ON")
-
     bind = op.get_bind()
     existing = set(sa.inspect(bind).get_table_names())
 

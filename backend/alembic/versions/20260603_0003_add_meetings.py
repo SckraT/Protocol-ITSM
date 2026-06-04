@@ -65,10 +65,12 @@ def upgrade() -> None:
     if "items" in existing:
         cols = {c["name"] for c in inspector.get_columns("items")}
         if "meeting_id" not in cols:
-            # На SQLite ALTER ADD COLUMN с FK-констрейнтом не поддерживается надёжно,
-            # поэтому добавляем простую INTEGER-колонку. FK обеспечивается на уровне ORM,
-            # а на свежей БД (create_all из моделей) FK создаётся полноценно.
-            op.add_column("items", sa.Column("meeting_id", sa.Integer, nullable=True))
+            op.add_column("items", sa.Column(
+                "meeting_id",
+                sa.Integer,
+                sa.ForeignKey("meetings.id", ondelete="SET NULL"),
+                nullable=True,
+            ))
             op.create_index("ix_items_meeting_id", "items", ["meeting_id"])
 
 

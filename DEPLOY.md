@@ -1,8 +1,8 @@
 # Деплой на VPS (Ubuntu) за Nginx + HTTPS
 
-Приложение — один Docker-контейнер: фронтенд собирается в статику и отдаётся вместе
-с API на порту `8000`. База — SQLite в volume `./data`. Наружу контейнер не публикуется —
-доступ идёт через Nginx reverse-proxy с TLS.
+Приложение — два Docker-контейнера: **protocol** (FastAPI + статика фронтенда) и **postgres**
+(PostgreSQL 16). Данные БД хранятся в именованном volume `postgres-data` (не в `./data`).
+Наружу контейнер не публикуется — доступ идёт через Nginx reverse-proxy с TLS.
 
 Файлы для прода уже в репозитории: `docker-compose.prod.yml`, `.env.example`, `deploy/nginx.conf`.
 
@@ -36,13 +36,18 @@ git checkout beta
 ```bash
 cp .env.example .env
 openssl rand -hex 32        # скопировать вывод в SECRET_KEY
-nano .env                   # задать SECRET_KEY и FIRST_ADMIN_PASSWORD
+openssl rand -hex 16        # скопировать вывод в POSTGRES_PASSWORD
+nano .env                   # задать SECRET_KEY, POSTGRES_PASSWORD, FIRST_ADMIN_PASSWORD
 ```
 
+- `POSTGRES_PASSWORD` — пароль PostgreSQL; используется и контейнером postgres, и строкой подключения.
 - `SECRET_KEY` — подпись JWT; смена ключа разлогинит всех. В git не коммитится.
   **Обязателен:** в проде (`DEBUG=False`) с дефолтным значением приложение не стартует.
 - `FIRST_ADMIN_PASSWORD` — действует **только при первом старте** (пустая таблица `users`).
   После запуска смените пароль в UI; правка переменной потом ни на что не влияет.
+
+> **Данные БД** теперь в Docker volume `postgres-data`, а не в `./data/`.
+> Бэкап: `docker exec protocol-postgres-1 pg_dump -U protocol protocol > backup.sql`
 
 ## 4. Запуск контейнера
 
