@@ -3,10 +3,15 @@
 Роли: viewer (чтение), editor (полный CRUD), admin (CRUD + управление пользователями).
 """
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+
+if TYPE_CHECKING:
+    from app.models.executor import Executor
 
 
 class RoleEnum(str, Enum):
@@ -26,3 +31,20 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(nullable=False)
     role: Mapped[str] = mapped_column(default=RoleEnum.viewer, nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+    # Контакты (опциональны, используются как альтернативные идентификаторы входа)
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True)
+
+    # Обратная связь 1:1 с исполнителем (Executor.user_id)
+    executor: Mapped["Executor | None"] = relationship(
+        "Executor",
+        back_populates="user",
+        uselist=False,
+        lazy="selectin",
+    )
+
+    @property
+    def executor_id(self) -> int | None:
+        """ID привязанного исполнителя (для сериализации)."""
+        return self.executor.id if self.executor else None

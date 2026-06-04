@@ -24,6 +24,8 @@
   let newUsername = $state('');
   let newPassword = $state('');
   let newRole = $state<Role>('viewer');
+  let newEmail = $state('');
+  let newPhone = $state('');
   let formError = $state('');
   let formLoading = $state(false);
 
@@ -31,6 +33,8 @@
   let editRole = $state<Role>('viewer');
   let editPassword = $state('');
   let editIsActive = $state(true);
+  let editEmail = $state('');
+  let editPhone = $state('');
 
   const roleOptions = (Object.keys(ROLE_LABEL) as Role[]).map((value) => ({ value, label: ROLE_LABEL[value] }));
 
@@ -65,6 +69,8 @@
     newUsername = '';
     newPassword = '';
     newRole = 'viewer';
+    newEmail = '';
+    newPhone = '';
     formError = '';
     showCreateModal = true;
   }
@@ -74,6 +80,8 @@
     editRole = user.role;
     editPassword = '';
     editIsActive = user.is_active;
+    editEmail = user.email ?? '';
+    editPhone = user.phone ?? '';
     formError = '';
   }
 
@@ -89,6 +97,8 @@
     formLoading = true;
     try {
       const body: UserCreate = { username: newUsername.trim(), password: newPassword, role: newRole };
+      if (newEmail.trim()) body.email = newEmail.trim();
+      if (newPhone.trim()) body.phone = newPhone.trim();
       const created = await apiPost<UserResponse>('/users', body);
       users = [...users, created];
       toastStore.success(`Пользователь «${created.username}» создан`);
@@ -108,6 +118,8 @@
     try {
       const body: UserUpdate = { role: editRole, is_active: editIsActive };
       if (editPassword) body.password = editPassword;
+      body.email = editEmail.trim() || null;
+      body.phone = editPhone.trim() || null;
       const updated = await apiPatch<UserResponse>(`/users/${editingUser.id}`, body);
       users = users.map((u) => (u.id === updated.id ? updated : u));
       toastStore.success(`Пользователь «${updated.username}» обновлён`);
@@ -233,6 +245,8 @@
   <form onsubmit={handleCreate} class="flex flex-col gap-4">
     <Input id="new-username" label="Имя пользователя" bind:value={newUsername} disabled={formLoading} />
     <Input id="new-password" type="password" label="Пароль" bind:value={newPassword} disabled={formLoading} />
+    <Input id="new-email" type="email" label="Email (необязательно)" bind:value={newEmail} disabled={formLoading} />
+    <Input id="new-phone" label="Телефон (необязательно)" placeholder="+7…" bind:value={newPhone} disabled={formLoading} />
     <Select
       id="new-role"
       label="Роль"
@@ -284,6 +298,8 @@
         disabled={formLoading}
         placeholder="Оставьте пустым для сохранения текущего"
       />
+      <Input id="edit-email" type="email" label="Email" bind:value={editEmail} disabled={formLoading} />
+      <Input id="edit-phone" label="Телефон" placeholder="+7…" bind:value={editPhone} disabled={formLoading} />
       {#if formError}
         <p class="rounded bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{formError}</p>
       {/if}

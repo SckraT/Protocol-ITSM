@@ -9,14 +9,16 @@ import {
   createExecutor as apiCreateExec,
   deleteExecutor as apiDeleteExec,
   fetchExecutors,
+  fetchUserOptions,
   updateExecutor as apiUpdateExec
 } from '$lib/api/executors';
-import type { Department, Executor } from '$lib/api/types';
+import type { Department, Executor, UserOption } from '$lib/api/types';
 import { toastStore } from './toast.svelte';
 
 class RefsStore {
   departments = $state<Department[]>([]);
   executors = $state<Executor[]>([]);
+  userOptions = $state<UserOption[]>([]);
   loading = $state(false);
 
   /** Отдел по ID. */
@@ -102,9 +104,13 @@ class RefsStore {
 
   // ── Исполнители ─────────────────────────────────────────────────────────────
 
-  async createExecutor(name: string, departmentId: number | null): Promise<boolean> {
+  async createExecutor(
+    name: string,
+    departmentId: number | null,
+    userId: number | null = null
+  ): Promise<boolean> {
     try {
-      const created = await apiCreateExec(name, departmentId);
+      const created = await apiCreateExec(name, departmentId, userId);
       this.executors = [...this.executors, created];
       toastStore.success('Исполнитель добавлен');
       return true;
@@ -114,14 +120,29 @@ class RefsStore {
     }
   }
 
-  async updateExecutor(id: number, name: string, departmentId: number | null): Promise<boolean> {
+  async updateExecutor(
+    id: number,
+    name: string,
+    departmentId: number | null,
+    userId: number | null = null
+  ): Promise<boolean> {
     try {
-      const updated = await apiUpdateExec(id, name, departmentId);
+      const updated = await apiUpdateExec(id, name, departmentId, userId);
       this.executors = this.executors.map((e) => (e.id === id ? updated : e));
       return true;
     } catch (e) {
       toastStore.error(e instanceof Error ? e.message : 'Ошибка');
       return false;
+    }
+  }
+
+  /** Загрузить список УЗ для привязки (только editor/admin). */
+  async loadUserOptions(): Promise<void> {
+    try {
+      this.userOptions = await fetchUserOptions();
+    } catch {
+      // тихо игнорируем — у viewer нет доступа
+      this.userOptions = [];
     }
   }
 

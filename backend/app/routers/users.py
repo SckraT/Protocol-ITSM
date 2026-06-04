@@ -40,11 +40,19 @@ async def create_user(
             detail=f"Пользователь '{body.username}' уже существует",
         )
 
+    # Проверка уникальности email/телефона
+    if body.email and await repo.get_by_email(body.email):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email уже используется")
+    if body.phone and await repo.get_by_phone(body.phone):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Телефон уже используется")
+
     user = User(
         username=body.username,
         hashed_password=hash_password(body.password),
         role=body.role,
         is_active=True,
+        email=body.email,
+        phone=body.phone,
     )
     return await repo.create(user)
 
@@ -75,6 +83,20 @@ async def update_user(
         user.is_active = body.is_active
     if body.password is not None:
         user.hashed_password = hash_password(body.password)
+
+    # Email/телефон: проверка уникальности при изменении (None — снять)
+    if "email" in body.model_fields_set:
+        if body.email:
+            other = await repo.get_by_email(body.email)
+            if other and other.id != user_id:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email уже используется")
+        user.email = body.email
+    if "phone" in body.model_fields_set:
+        if body.phone:
+            other = await repo.get_by_phone(body.phone)
+            if other and other.id != user_id:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Телефон уже используется")
+        user.phone = body.phone
 
     await repo.session.flush()
     await repo.session.refresh(user)

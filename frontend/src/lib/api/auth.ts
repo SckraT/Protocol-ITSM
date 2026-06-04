@@ -23,18 +23,25 @@ export interface UserResponse {
   role: Role;
   is_active: boolean;
   created_at: string;
+  email: string | null;
+  phone: string | null;
+  executor_id: number | null;
 }
 
 export interface UserCreate {
   username: string;
   password: string;
   role: Role;
+  email?: string | null;
+  phone?: string | null;
 }
 
 export interface UserUpdate {
   role?: Role;
   is_active?: boolean;
   password?: string;
+  email?: string | null;
+  phone?: string | null;
 }
 
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? '/api') as string;
@@ -50,9 +57,9 @@ async function post<T>(path: string, body: unknown, token?: string): Promise<T> 
   return res.json() as Promise<T>;
 }
 
-/** Войти по логину и паролю. */
-export async function apiLogin(username: string, password: string): Promise<TokenResponse> {
-  return post('/auth/login', { username, password });
+/** Войти по идентификатору (логин/email/телефон) и паролю. */
+export async function apiLogin(identifier: string, password: string): Promise<TokenResponse> {
+  return post('/auth/login', { identifier, password });
 }
 
 /** Обновить access-токен по refresh-токену. */

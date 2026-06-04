@@ -21,12 +21,13 @@ class AuthService:
     def __init__(self, db: AsyncSession) -> None:
         self.repo = UserRepository(db)
 
-    async def authenticate(self, username: str, password: str) -> TokenResponse | None:
+    async def authenticate(self, identifier: str, password: str) -> TokenResponse | None:
         """
         Проверить учётные данные и вернуть токены.
+        identifier — username, email или телефон (тип определяется автоматически).
         Возвращает None если пользователь не найден, заблокирован или пароль неверен.
         """
-        user = await self.repo.get_by_username(username)
+        user = await self.repo.get_by_identifier(identifier)
         if not user or not user.is_active:
             return None
         if not verify_password(password, user.hashed_password):

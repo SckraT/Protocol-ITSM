@@ -17,6 +17,14 @@ export interface Executor {
   name: string;
   department_id: number | null;
   department_name: string | null;
+  user_id: number | null;
+  user: { id: number; username: string } | null;
+}
+
+/** Краткая УЗ для выбора привязки исполнителя. */
+export interface UserOption {
+  id: number;
+  username: string;
 }
 
 /** Исполнитель в составе задачи (краткая форма из ItemResponse). */

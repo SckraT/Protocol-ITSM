@@ -15,13 +15,13 @@ router = APIRouter(prefix="/auth", tags=["Аутентификация"])
 
 @router.post("/login", response_model=TokenResponse, summary="Вход в систему")
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
-    """Аутентификация по логину и паролю. Возвращает access и refresh токены."""
+    """Аутентификация по логину/email/телефону и паролю. Возвращает access и refresh токены."""
     service = AuthService(db)
-    result = await service.authenticate(body.username, body.password)
+    result = await service.authenticate(body.identifier, body.password)
     if not result:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверное имя пользователя или пароль",
+            detail="Неверный логин или пароль",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return result

@@ -6,7 +6,7 @@
   import Input from '$lib/components/ui/Input.svelte';
   import Button from '$lib/components/ui/Button.svelte';
 
-  let username = $state('');
+  let identifier = $state('');
   let password = $state('');
   let error = $state('');
   let loading = $state(false);
@@ -21,7 +21,7 @@
     error = '';
     loading = true;
     try {
-      await authStore.login(username, password);
+      await authStore.login(identifier, password);
       goto('/');
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Ошибка входа';
@@ -50,10 +50,10 @@
     >
       <div class="flex flex-col gap-4">
         <Input
-          id="username"
-          label="Имя пользователя"
-          placeholder="admin"
-          bind:value={username}
+          id="identifier"
+          label="Логин, email или телефон"
+          placeholder="admin / user@mail.ru / +7…"
+          bind:value={identifier}
           disabled={loading}
         />
         <Input
@@ -71,7 +71,7 @@
           </p>
         {/if}
 
-        <Button type="submit" variant="primary" disabled={loading || !username || !password}>
+        <Button type="submit" variant="primary" disabled={loading || !identifier || !password}>
           {#if loading}
             Вход…
           {:else}

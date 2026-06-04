@@ -64,9 +64,9 @@ function createAuthStore() {
     }
   }
 
-  /** Войти: аутентифицироваться на сервере, сохранить токены. */
-  async function login(username: string, password: string): Promise<void> {
-    const result = await apiLogin(username, password);
+  /** Войти: аутентифицироваться по идентификатору (логин/email/телефон), сохранить токены. */
+  async function login(identifier: string, password: string): Promise<void> {
+    const result = await apiLogin(identifier, password);
     _save(result);
   }
 

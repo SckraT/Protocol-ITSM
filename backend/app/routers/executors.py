@@ -5,7 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user, require_editor
 from app.models.user import User
-from app.schemas.executor import ExecutorCreate, ExecutorResponse, ExecutorUpdate
+from app.repositories.user_repository import UserRepository
+from app.schemas.executor import ExecutorCreate, ExecutorResponse, ExecutorUpdate, ExecutorUserInfo
 from app.services.executor_service import ExecutorService
 
 router = APIRouter(prefix="/executors", tags=["Исполнители"])
@@ -19,6 +20,17 @@ async def list_executors(
     """Возвращает всех исполнителей с именами отделов."""
     service = ExecutorService(db)
     return await service.list_all()
+
+
+@router.get("/user-options", response_model=list[ExecutorUserInfo], summary="Список УЗ для привязки")
+async def user_options(
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(require_editor),
+):
+    """Краткий список учётных записей (id + username) для выбора привязки. Доступно editor."""
+    repo = UserRepository(db)
+    users = await repo.list(limit=1000)
+    return [ExecutorUserInfo(id=u.id, username=u.username) for u in users]
 
 
 @router.post("", response_model=ExecutorResponse, status_code=status.HTTP_201_CREATED, summary="Создать исполнителя")

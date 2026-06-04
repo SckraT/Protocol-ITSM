@@ -7,9 +7,9 @@ from app.models.user import RoleEnum
 
 
 class LoginRequest(BaseModel):
-    """Запрос на вход: логин + пароль."""
+    """Запрос на вход: идентификатор (username/email/телефон) + пароль."""
 
-    username: str
+    identifier: str
     password: str
 
 
