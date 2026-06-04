@@ -9,6 +9,13 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.executor import ExecutorResponse, ExecutorUpdate, ExecutorUserInfo, ExecutorCreate
 
 
+def sync_executor_name(user) -> None:
+    """Синхронизировать имя привязанного исполнителя с ФИО пользователя.
+    Вызывается при изменении ФИО или привязки УЗ. Если ФИО не задано — не трогаем."""
+    if user.executor and user.last_name:
+        user.executor.name = user.display_name
+
+
 def _to_response(executor: Executor) -> ExecutorResponse:
     """Формирует ExecutorResponse из ORM-объекта."""
     dept_name = executor.department.name if executor.department else None
@@ -34,13 +41,14 @@ class ExecutorService:
         self.dept_repo = DepartmentRepository(session)
         self.user_repo = UserRepository(session)
 
-    async def _check_user_free(self, user_id: int, executor_id: int | None) -> None:
-        """Проверить, что УЗ существует и не занята другим исполнителем."""
+    async def _check_user_free(self, user_id: int, executor_id: int | None):
+        """Проверить, что УЗ существует и не занята другим исполнителем. Вернуть пользователя."""
         user = await self.user_repo.get(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="Учётная запись не найдена")
         if user.executor and user.executor.id != executor_id:
             raise HTTPException(status_code=409, detail="Учётная запись уже привязана к другому исполнителю")
+        return user
 
     async def list_all(self) -> list[ExecutorResponse]:
         """Получить всех исполнителей с именами отделов."""
@@ -50,9 +58,6 @@ class ExecutorService:
     async def create(self, data: ExecutorCreate) -> ExecutorResponse:
         """Создать исполнителя. 409 если имя занято, 404 если отдел не найден."""
         name = data.name.strip()
-        existing = await self.repo.get_by_name(name)
-        if existing:
-            raise HTTPException(status_code=409, detail="Исполнитель с таким именем уже существует")
 
         # Проверяем существование отдела (если указан)
         if data.department_id is not None:
@@ -60,9 +65,16 @@ class ExecutorService:
             if not dept:
                 raise HTTPException(status_code=404, detail="Отдел не найден")
 
-        # Проверяем УЗ (если указана)
+        # Проверяем УЗ (если указана). Если у УЗ задано ФИО — имя берём из него (синхрон).
         if data.user_id is not None:
-            await self._check_user_free(data.user_id, executor_id=None)
+            user = await self._check_user_free(data.user_id, executor_id=None)
+            if user.last_name:
+                name = user.display_name
+
+        # Уникальность итогового имени
+        existing = await self.repo.get_by_name(name)
+        if existing:
+            raise HTTPException(status_code=409, detail="Исполнитель с таким именем уже существует")
 
         executor = Executor(name=name, department_id=data.department_id, user_id=data.user_id)
         created = await self.repo.create(executor)
@@ -95,7 +107,10 @@ class ExecutorService:
         # Обновление привязки к УЗ (None — снять привязку)
         if "user_id" in data.model_fields_set:
             if data.user_id is not None:
-                await self._check_user_free(data.user_id, executor_id=executor_id)
+                user = await self._check_user_free(data.user_id, executor_id=executor_id)
+                # Синхрон: имя исполнителя берём из ФИО привязанной УЗ
+                if user.last_name:
+                    executor.name = user.display_name
             executor.user_id = data.user_id
 
         await self.repo.session.flush()

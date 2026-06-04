@@ -21,6 +21,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     username: str
     role: RoleEnum
+    display_name: str
 
 
 class RefreshRequest(BaseModel):
@@ -36,3 +37,4 @@ class MeResponse(BaseModel):
     username: str
     role: RoleEnum
     is_active: bool
+    display_name: str

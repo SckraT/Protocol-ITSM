@@ -32,6 +32,11 @@ class User(Base):
     role: Mapped[str] = mapped_column(default=RoleEnum.viewer, nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
 
+    # ФИО (Фамилия/Имя/Отчество). Обязательность — на уровне схем, в БД nullable.
+    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    middle_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     # Контакты (опциональны, используются как альтернативные идентификаторы входа)
     email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
     phone: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True)
@@ -48,3 +53,15 @@ class User(Base):
     def executor_id(self) -> int | None:
         """ID привязанного исполнителя (для сериализации)."""
         return self.executor.id if self.executor else None
+
+    @property
+    def display_name(self) -> str:
+        """«Фамилия И.О.» из ФИО; если фамилия пуста → username (legacy/seed)."""
+        if not self.last_name:
+            return self.username
+        initials = ""
+        if self.first_name:
+            initials += f" {self.first_name[0].upper()}."
+        if self.middle_name:
+            initials += f"{self.middle_name[0].upper()}."
+        return f"{self.last_name}{initials}"

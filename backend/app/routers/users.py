@@ -11,6 +11,7 @@ from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.security import hash_password
+from app.services.executor_service import sync_executor_name
 
 # Весь роутер доступен только Admin — guard на уровне роутера.
 router = APIRouter(prefix="/users", tags=["Пользователи"], dependencies=[Depends(require_admin)])
@@ -53,6 +54,9 @@ async def create_user(
         is_active=True,
         email=body.email,
         phone=body.phone,
+        last_name=body.last_name,
+        first_name=body.first_name,
+        middle_name=body.middle_name,
     )
     return await repo.create(user)
 
@@ -97,6 +101,17 @@ async def update_user(
             if other and other.id != user_id:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Телефон уже используется")
         user.phone = body.phone
+
+    # ФИО
+    if "last_name" in body.model_fields_set and body.last_name is not None:
+        user.last_name = body.last_name
+    if "first_name" in body.model_fields_set and body.first_name is not None:
+        user.first_name = body.first_name
+    if "middle_name" in body.model_fields_set:
+        user.middle_name = body.middle_name
+
+    # Синхрон имени привязанного исполнителя из ФИО
+    sync_executor_name(user)
 
     await repo.session.flush()
     await repo.session.refresh(user)

@@ -15,6 +15,7 @@ export interface TokenResponse {
   token_type: string;
   username: string;
   role: Role;
+  display_name: string;
 }
 
 export interface UserResponse {
@@ -26,6 +27,10 @@ export interface UserResponse {
   email: string | null;
   phone: string | null;
   executor_id: number | null;
+  last_name: string | null;
+  first_name: string | null;
+  middle_name: string | null;
+  display_name: string;
 }
 
 export interface UserCreate {
@@ -34,6 +39,9 @@ export interface UserCreate {
   role: Role;
   email?: string | null;
   phone?: string | null;
+  last_name: string;
+  first_name: string;
+  middle_name?: string | null;
 }
 
 export interface UserUpdate {
@@ -42,6 +50,9 @@ export interface UserUpdate {
   password?: string;
   email?: string | null;
   phone?: string | null;
+  last_name?: string;
+  first_name?: string;
+  middle_name?: string | null;
 }
 
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? '/api') as string;

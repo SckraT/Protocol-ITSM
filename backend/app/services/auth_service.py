@@ -64,4 +64,5 @@ class AuthService:
             refresh_token=create_refresh_token(user.username),
             username=user.username,
             role=user.role,
+            display_name=user.display_name,
         )

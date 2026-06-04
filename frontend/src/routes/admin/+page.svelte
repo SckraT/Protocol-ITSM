@@ -26,6 +26,9 @@
   let newRole = $state<Role>('viewer');
   let newEmail = $state('');
   let newPhone = $state('');
+  let newLastName = $state('');
+  let newFirstName = $state('');
+  let newMiddleName = $state('');
   let formError = $state('');
   let formLoading = $state(false);
 
@@ -35,6 +38,9 @@
   let editIsActive = $state(true);
   let editEmail = $state('');
   let editPhone = $state('');
+  let editLastName = $state('');
+  let editFirstName = $state('');
+  let editMiddleName = $state('');
 
   const roleOptions = (Object.keys(ROLE_LABEL) as Role[]).map((value) => ({ value, label: ROLE_LABEL[value] }));
 
@@ -71,6 +77,9 @@
     newRole = 'viewer';
     newEmail = '';
     newPhone = '';
+    newLastName = '';
+    newFirstName = '';
+    newMiddleName = '';
     formError = '';
     showCreateModal = true;
   }
@@ -82,6 +91,9 @@
     editIsActive = user.is_active;
     editEmail = user.email ?? '';
     editPhone = user.phone ?? '';
+    editLastName = user.last_name ?? '';
+    editFirstName = user.first_name ?? '';
+    editMiddleName = user.middle_name ?? '';
     formError = '';
   }
 
@@ -96,7 +108,14 @@
     formError = '';
     formLoading = true;
     try {
-      const body: UserCreate = { username: newUsername.trim(), password: newPassword, role: newRole };
+      const body: UserCreate = {
+        username: newUsername.trim(),
+        password: newPassword,
+        role: newRole,
+        last_name: newLastName.trim(),
+        first_name: newFirstName.trim()
+      };
+      if (newMiddleName.trim()) body.middle_name = newMiddleName.trim();
       if (newEmail.trim()) body.email = newEmail.trim();
       if (newPhone.trim()) body.phone = newPhone.trim();
       const created = await apiPost<UserResponse>('/users', body);
@@ -120,6 +139,9 @@
       if (editPassword) body.password = editPassword;
       body.email = editEmail.trim() || null;
       body.phone = editPhone.trim() || null;
+      body.last_name = editLastName.trim();
+      body.first_name = editFirstName.trim();
+      body.middle_name = editMiddleName.trim() || null;
       const updated = await apiPatch<UserResponse>(`/users/${editingUser.id}`, body);
       users = users.map((u) => (u.id === updated.id ? updated : u));
       toastStore.success(`Пользователь «${updated.username}» обновлён`);
@@ -191,6 +213,9 @@
                 {#if isSelf}
                   <span class="ml-1 text-xs text-[var(--text-secondary)]">(вы)</span>
                 {/if}
+                {#if user.last_name}
+                  <div class="text-xs font-normal text-[var(--text-secondary)]">{user.display_name}</div>
+                {/if}
               </td>
               <td class="px-4 py-3">
                 <span class="inline-flex items-center gap-1.5 text-[var(--text-secondary)]">
@@ -243,6 +268,9 @@
 <!-- Модальное окно: создание пользователя -->
 <Modal open={showCreateModal} title="Новый пользователь" onClose={closeModals}>
   <form onsubmit={handleCreate} class="flex flex-col gap-4">
+    <Input id="new-lastname" label="Фамилия" bind:value={newLastName} disabled={formLoading} />
+    <Input id="new-firstname" label="Имя" bind:value={newFirstName} disabled={formLoading} />
+    <Input id="new-middlename" label="Отчество (необязательно)" bind:value={newMiddleName} disabled={formLoading} />
     <Input id="new-username" label="Имя пользователя" bind:value={newUsername} disabled={formLoading} />
     <Input id="new-password" type="password" label="Пароль" bind:value={newPassword} disabled={formLoading} />
     <Input id="new-email" type="email" label="Email (необязательно)" bind:value={newEmail} disabled={formLoading} />
@@ -259,7 +287,7 @@
     {/if}
     <div class="flex justify-end gap-2 pt-1">
       <Button variant="secondary" onclick={closeModals} disabled={formLoading}>Отмена</Button>
-      <Button type="submit" variant="primary" disabled={formLoading || !newUsername || !newPassword}>
+      <Button type="submit" variant="primary" disabled={formLoading || !newUsername || !newPassword || !newLastName || !newFirstName}>
         {formLoading ? 'Создание…' : 'Создать'}
       </Button>
     </div>
@@ -273,6 +301,9 @@
       <p class="text-sm text-[var(--text-secondary)]">
         Пользователь: <span class="font-medium text-[var(--text-body)]">{editingUser.username}</span>
       </p>
+      <Input id="edit-lastname" label="Фамилия" bind:value={editLastName} disabled={formLoading} />
+      <Input id="edit-firstname" label="Имя" bind:value={editFirstName} disabled={formLoading} />
+      <Input id="edit-middlename" label="Отчество (необязательно)" bind:value={editMiddleName} disabled={formLoading} />
       <Select
         id="edit-role"
         label="Роль"
@@ -305,7 +336,7 @@
       {/if}
       <div class="flex justify-end gap-2 pt-1">
         <Button variant="secondary" onclick={closeModals} disabled={formLoading}>Отмена</Button>
-        <Button type="submit" variant="primary" disabled={formLoading}>
+        <Button type="submit" variant="primary" disabled={formLoading || !editLastName || !editFirstName}>
           {formLoading ? 'Сохранение…' : 'Сохранить'}
         </Button>
       </div>

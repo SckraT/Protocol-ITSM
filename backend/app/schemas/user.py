@@ -28,6 +28,22 @@ def _empty_email_to_none(v: str | None) -> str | None:
     return v or None
 
 
+def _required_name(v: str, field: str) -> str:
+    """Проверить обязательное поле ФИО: непустое после strip."""
+    v = (v or "").strip()
+    if not v:
+        raise ValueError(f"{field} не может быть пустым")
+    return v
+
+
+def _optional_name(v: str | None) -> str | None:
+    """Нормализовать необязательное поле ФИО: пустое → None."""
+    if v is None:
+        return None
+    v = v.strip()
+    return v or None
+
+
 class UserCreate(BaseModel):
     """Создание нового пользователя."""
 
@@ -36,6 +52,24 @@ class UserCreate(BaseModel):
     role: RoleEnum = RoleEnum.viewer
     email: EmailStr | None = None
     phone: str | None = None
+    last_name: str
+    first_name: str
+    middle_name: str | None = None
+
+    @field_validator("last_name")
+    @classmethod
+    def last_name_required(cls, v: str) -> str:
+        return _required_name(v, "Фамилия")
+
+    @field_validator("first_name")
+    @classmethod
+    def first_name_required(cls, v: str) -> str:
+        return _required_name(v, "Имя")
+
+    @field_validator("middle_name")
+    @classmethod
+    def middle_name_opt(cls, v: str | None) -> str | None:
+        return _optional_name(v)
 
     @field_validator("username")
     @classmethod
@@ -73,6 +107,9 @@ class UserUpdate(BaseModel):
     password: str | None = None
     email: EmailStr | None = None
     phone: str | None = None
+    last_name: str | None = None
+    first_name: str | None = None
+    middle_name: str | None = None
 
     @field_validator("email", mode="before")
     @classmethod
@@ -83,6 +120,22 @@ class UserUpdate(BaseModel):
     @classmethod
     def normalize_phone_field(cls, v: str | None) -> str | None:
         return _normalize_phone_or_none(v)
+
+    @field_validator("last_name", "first_name")
+    @classmethod
+    def name_not_empty_if_set(cls, v: str | None) -> str | None:
+        # Если поле передано — оно не должно быть пустым (ФИО обязательно)
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            raise ValueError("Поле ФИО не может быть пустым")
+        return v
+
+    @field_validator("middle_name")
+    @classmethod
+    def middle_name_opt(cls, v: str | None) -> str | None:
+        return _optional_name(v)
 
 
 class UserResponse(BaseModel):
@@ -96,5 +149,9 @@ class UserResponse(BaseModel):
     email: str | None = None
     phone: str | None = None
     executor_id: int | None = None  # читается из property User.executor_id
+    last_name: str | None = None
+    first_name: str | None = None
+    middle_name: str | None = None
+    display_name: str  # читается из property User.display_name
 
     model_config = {"from_attributes": True}

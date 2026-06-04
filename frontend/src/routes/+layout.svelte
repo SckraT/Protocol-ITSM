@@ -95,7 +95,7 @@
           {#if authStore.user}
             <div class="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
               <Users size={14} />
-              <span class="font-medium text-[var(--text-primary)]">{authStore.user.username}</span>
+              <span class="font-medium text-[var(--text-primary)]">{authStore.user.displayName || authStore.user.username}</span>
               <span class="rounded bg-[var(--table-hover)] px-1.5 py-0.5 text-xs">
                 {ROLE_LABEL[authStore.user.role] ?? authStore.user.role}
               </span>

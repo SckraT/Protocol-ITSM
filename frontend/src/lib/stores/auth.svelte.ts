@@ -8,6 +8,7 @@ import { LS_ACCESS, LS_REFRESH, LS_USER } from '$lib/api/client';
 interface AuthUser {
   username: string;
   role: Role;
+  displayName: string;
 }
 
 function createAuthStore() {
@@ -25,6 +26,11 @@ function createAuthStore() {
     );
   }
 
+  // Нормализуем восстановленного пользователя: старый формат без displayName → username
+  function _withDisplay(u: AuthUser): AuthUser {
+    return { ...u, displayName: u.displayName || u.username };
+  }
+
   // Восстановить сессию из localStorage
   function restore(): void {
     if (!browser) return;
@@ -34,7 +40,7 @@ function createAuthStore() {
     try {
       const parsed = JSON.parse(storedUser);
       if (isAuthUser(parsed)) {
-        user = parsed;
+        user = _withDisplay(parsed);
         accessToken = storedToken;
       } else {
         _clear(); // валидный JSON, но не пользователь (повреждённые данные)
@@ -54,8 +60,14 @@ function createAuthStore() {
     }
   }
 
-  function _save(data: { username: string; role: Role; access_token: string; refresh_token: string }): void {
-    user = { username: data.username, role: data.role };
+  function _save(data: {
+    username: string;
+    role: Role;
+    access_token: string;
+    refresh_token: string;
+    display_name: string;
+  }): void {
+    user = { username: data.username, role: data.role, displayName: data.display_name || data.username };
     accessToken = data.access_token;
     if (browser) {
       localStorage.setItem(LS_ACCESS, data.access_token);
