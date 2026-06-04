@@ -35,6 +35,17 @@ _PRIORITY_BY_LABEL = {label: value for value, label in PRIORITY_LABEL_RU.items()
 _STATE_VALUES = {e.value for e in StateEnum}
 _PRIORITY_VALUES = {e.value for e in PriorityEnum}
 
+# Экранирование formula injection: ячейки, начинающиеся с этих символов,
+# Excel/LibreOffice трактуют как формулы. Префикс ' нейтрализует исполнение.
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sanitize_cell(value):
+    """Нейтрализовать formula injection в строковых ячейках экспорта."""
+    if isinstance(value, str) and value and value[0] in _FORMULA_PREFIXES:
+        return "'" + value
+    return value
+
 
 def _parse_state(raw: str | None) -> str:
     """Нормализовать состояние из CSV. Неизвестное → in_progress."""
@@ -115,14 +126,14 @@ class CsvService:
 
             writer.writerow({
                 "id": item.id,
-                "topic": item.topic,
-                "ticket": item.ticket or "",
+                "topic": _sanitize_cell(item.topic),
+                "ticket": _sanitize_cell(item.ticket or ""),
                 "priority": item.priority or "",
                 "state": item.state,
                 "due_date": str(item.due_date) if item.due_date else "",
-                "executors": self._executor_str(item.executors),
+                "executors": _sanitize_cell(self._executor_str(item.executors)),
                 "last_status_date": str(last_status.status_date) if last_status and last_status.status_date else "",
-                "last_status_note": last_status.status_note or "" if last_status else "",
+                "last_status_note": _sanitize_cell(last_status.status_note or "" if last_status else ""),
             })
 
         # UTF-8 BOM для корректного открытия в Excel
@@ -193,14 +204,14 @@ class CsvService:
 
             row_data = [
                 row_idx - 1,
-                item.topic,
-                item.ticket or "",
+                _sanitize_cell(item.topic),
+                _sanitize_cell(item.ticket or ""),
                 PRIORITY_LABEL_RU.get(prio, prio),
                 STATE_LABEL_RU.get(state, state),
                 str(item.due_date) if item.due_date else "",
-                exec_str,
+                _sanitize_cell(exec_str),
                 str(last_status.status_date) if last_status and last_status.status_date else "",
-                last_status.status_note or "" if last_status else "",
+                _sanitize_cell(last_status.status_note or "" if last_status else ""),
             ]
 
             for col_idx, value in enumerate(row_data, 1):

@@ -66,11 +66,23 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("Не удалось применить миграции Alembic — запуск прерван")
     print("[alembic] Миграции применены успешно", flush=True)
 
-    # Предупреждение о небезопасных дефолтах в проде
-    if not settings.DEBUG and settings.SECRET_KEY == "change-me-in-production-use-strong-random-key":
+    # Проверка небезопасных дефолтов. В проде дефолтный SECRET_KEY фатален
+    # (ключ публичен в репозитории — атакующий подпишет любой admin-JWT).
+    _default_secret = "change-me-in-production-use-strong-random-key"
+    if settings.SECRET_KEY == _default_secret:
+        if not settings.DEBUG:
+            raise RuntimeError(
+                "Дефолтный SECRET_KEY недопустим в продакшне. "
+                "Задайте SECRET_KEY в .env (openssl rand -hex 32)."
+            )
+        print("[security] ВНИМАНИЕ: дефолтный SECRET_KEY (только для dev)!", flush=True)
+
+    # Дефолтный пароль администратора — громкое предупреждение (действует только
+    # при пустой таблице users, поэтому не фатально).
+    if settings.FIRST_ADMIN_PASSWORD == "admin":
         print(
-            "[security] ВНИМАНИЕ: используется дефолтный SECRET_KEY! "
-            "Задайте свой SECRET_KEY в .env (openssl rand -hex 32) перед продакшном.",
+            "[security] ВНИМАНИЕ: используется дефолтный пароль администратора 'admin'! "
+            "Смените FIRST_ADMIN_PASSWORD в .env до первого запуска.",
             flush=True,
         )
 
@@ -116,7 +128,7 @@ async def _seed_first_admin() -> None:
 app = FastAPI(
     title="Протокол совещания v2.0",
     description="API для управления задачами протокола совещания",
-    version="2.2.1",
+    version="2.2.2",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
@@ -151,7 +163,7 @@ app.include_router(import_router, prefix="/api", dependencies=_auth)
 @app.get("/health", tags=["Система"], summary="Health check")
 async def health_check():
     """Проверка работоспособности сервиса."""
-    return {"status": "ok", "version": "2.2.1"}
+    return {"status": "ok", "version": "2.2.2"}
 
 
 # Раздача статики (собранный фронтенд SPA) — только если директория существует.
