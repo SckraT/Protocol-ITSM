@@ -1,0 +1,19 @@
+# Pre-commit хуки: линт бэкенда (ruff) и типчек фронтенда (svelte-check).
+# Установка: pip install pre-commit && pre-commit install
+# Ручной прогон: pre-commit run --all-files
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+
+  - repo: local
+    hooks:
+      - id: svelte-check
+        name: svelte-check
+        entry: bash -c 'cd frontend && npm run check'
+        language: system
+        files: ^frontend/.*\.(svelte|ts)$
+        pass_filenames: false

@@ -5,6 +5,27 @@
 
 ---
 
+## [Unreleased]
+
+### Удалено
+- **Мёртвый код v1→v2 миграции:** `scripts/migrate_data.py` (SQLite-синтаксис
+  `INSERT OR IGNORE`, колонка `items.executors_json` в v2/PostgreSQL отсутствует) и
+  `docs/MIGRATION_GUIDE.md` (гайд той же legacy-миграции).
+- **Устаревший аудит** `docs/Audit_Result_TZ.md` (ТЗ v2.6.8, исполнен в v2.6.9, заменён
+  `docs/AUDIT_v2.6.9.md`).
+- **Легаси-каталог `data/`** (`.gitkeep`) — в v2 БД хранится в Docker volume `postgres-data`.
+
+### Добавлено
+- **`.pre-commit-config.yaml`** в репозиторий (ruff + svelte-check хуки для локальной проверки).
+
+### Изменено
+- `.gitignore` — добавлены `.coverage`, `.coverage.*`, `htmlcov/` (артефакты pytest-cov).
+- `Dockerfile.dev` — убран неиспользуемый `ENV DB_PATH` (наследие SQLite).
+- `README.md` — quickstart `pip install -r requirements.txt` → `pip install -e ".[dev]"`
+  (проект на `pyproject.toml`); актуализированы дерево, ссылки на доки и футер версии.
+
+---
+
 ## [2.7.0] — 2026-06-05
 
 Точечный рефакторинг по итогам аудита (`docs/AUDIT_v2.6.9.md`): качество, типизация,

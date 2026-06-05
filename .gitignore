@@ -15,6 +15,9 @@ backend/.venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 
 # Node / фронтенд
 node_modules/

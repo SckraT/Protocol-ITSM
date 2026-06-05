@@ -60,8 +60,8 @@ docker-compose -f docker-compose.dev.yml up
 ```bash
 cd backend
 
-# Установить зависимости
-pip install -r requirements.txt
+# Установить зависимости (проект использует pyproject.toml)
+pip install -e ".[dev]"
 
 # Миграции БД
 alembic upgrade head
@@ -115,11 +115,11 @@ Protocol/
 │   ├── tailwind.config.ts
 │   └── svelte.config.js
 │
-├── data/                     # Каталог данных (legacy v1; в v2 БД — в Docker volume postgres-data)
-├── scripts/                  # Миграция данных, seed-ы
+├── scripts/                  # seed-данные / утилиты (БД — в Docker volume postgres-data)
 ├── docs/                     # Архитектурная документация
-├── docker-compose.yml        # Production
-├── docker-compose.dev.yml    # Development
+├── docker-compose.yml        # Базовый стек (backend + postgres)
+├── docker-compose.dev.yml    # Development (hot-reload)
+├── docker-compose.prod.yml   # Production (за Nginx)
 ├── Dockerfile                # Multi-stage build
 ├── CHANGELOG.md              # История версий
 ├── BACKLOG.md                # Дорожная карта задач
@@ -198,8 +198,8 @@ docker-compose up -d
 
 - [CHANGELOG.md](CHANGELOG.md) — история версий
 - [BACKLOG.md](BACKLOG.md) — дорожная карта разработки (этапы 1-6)
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — архитектурные решения (планируется)
-- [docs/MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) — миграция данных из v1 (планируется)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — архитектурные решения
+- [docs/AUDIT_v2.6.9.md](docs/AUDIT_v2.6.9.md) — аудит и план точечного рефакторинга
 
 ## 🔧 Troubleshooting
 
@@ -231,8 +231,8 @@ GitHub: https://github.com/SckraT
 
 ---
 
-**Версия:** 2.0.0  
-**Дата обновления:** 2026-06-01  
-**Статус:** ✅ Этапы 1–6 завершены (backend + frontend + Docker)
+**Версия:** 2.7.0  
+**Дата обновления:** 2026-06-06  
+**Статус:** ✅ В продакшне
 
-См. также: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md)
+См. также: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/AUDIT_v2.6.9.md](docs/AUDIT_v2.6.9.md)
