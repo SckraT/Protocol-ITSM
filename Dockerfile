@@ -1,6 +1,6 @@
-# Протокол совещания v2.0 — мультистейджевая сборка
-# Stage 1: Сборка фронтенда (Node.js)
-# Stage 2: Python бэкенд со встроенным фронтендом
+# Протокол совещаний — мультистейджевая сборка
+# Stage 1: сборка фронтенда (Node.js)
+# Stage 2: Python-бэкенд со встроенным фронтендом
 
 # ── Stage 1: Frontend build ────────────────────────────────────────────────────
 FROM node:20-alpine AS frontend
@@ -29,14 +29,9 @@ RUN pip install --no-cache-dir ./backend
 # Копируем собранный фронтенд как статику (Svelte build → dist/)
 COPY --from=frontend /app/frontend/dist ./static/
 
-# Директория для SQLite БД (подключается как volume)
-RUN mkdir -p /app/data
-
-# Переменные окружения
-ENV DB_PATH=/app/data/protocol.db
+# Переменные окружения (данные хранятся в PostgreSQL, локальный volume не нужен)
 ENV PYTHONPATH=/app/backend
 
-VOLUME ["/app/data"]
 EXPOSE 8000
 
 # Запуск сервера. Миграции применяются в lifespan приложения (единая точка,
