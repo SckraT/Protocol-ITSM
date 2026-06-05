@@ -1,85 +1,94 @@
-# Протокол совещаний (Meeting Minutes) v2.0
+# Протокол совещаний (Meeting Minutes)
 
-Минималистичное веб-приложение для ведения протоколов совещаний и управления задачами — самостоятельно размещаемая альтернатива Excel и Google Sheets.
+Самостоятельно размещаемое (self-hosted) веб-приложение для ведения протоколов совещаний
+и управления задачами — лёгкая альтернатива Excel и Google Sheets с ролевым доступом,
+историей статусов, справочниками и экспортом в Excel/CSV.
 
-## 🎯 Возможности
+> **Версия:** 2.7.0 · **Статус:** ✅ в продакшне · **Лицензия:** внутренний проект (self-hosted)
 
-- **CRUD задач** — создание, редактирование, удаление задач
-- **Управление статусами** — отслеживание состояния (в работе / отложено / закрыто)
-- **История статусов (Таймлайн)** — полная запись всех изменений статусов
-- **Справочники** — управление отделами и исполнителями
-- **Фильтрация и поиск** — по отделу, исполнителю, приоритету, полнотекстовый поиск
-- **Массовые действия** — выделение чекбоксами, bulk-операции (смена статуса, удаление)
-- **Экспорт/Импорт** — CSV с поддержкой UTF-8 BOM для Excel
-- **Сохранение состояния** — восстановление фильтров и открытой задачи после перезагрузки
-- **Темная тема** — переключение Light/Dark mode
-- **Печать** — оптимизированные стили для печати
+---
+
+## 🎯 Цель проекта
+
+Команды часто ведут задачи по итогам совещаний в разрозненных таблицах: теряется история,
+нет единого источника правды, сложно фильтровать и разграничивать доступ. Это приложение
+даёт **одно место** для:
+
+- фиксации задач по совещаниям с приоритетами и сроками;
+- прозрачной **истории изменения статусов** (таймлайн);
+- работы команды с **ролевым доступом** (наблюдатель / редактор / администратор);
+- быстрого экспорта в Excel/CSV для отчётности и обмена.
+
+Разворачивается одним `docker compose` в собственной инфраструктуре — данные не покидают
+ваш сервер.
+
+---
+
+## ✨ Возможности
+
+**Задачи и статусы**
+- CRUD задач: тема, тикет, приоритет, состояние, срок, исполнители, привязка к совещанию
+- Состояния: «в работе» / «отложено» / «закрыто»; индикация просроченных
+- История статусов (таймлайн) с датами и комментариями
+- Фильтрация и полнотекстовый поиск (тема, тикет, исполнитель), сортировка по колонкам
+- Массовые действия (bulk): смена состояния и удаление выделенных задач
+
+**Справочники и совещания**
+- Отделы и исполнители (с привязкой исполнителя к учётной записи)
+- Совещания с участниками; группировка задач по совещанию
+
+**Доступ и безопасность**
+- Аутентификация по логину / email / телефону (JWT: access + refresh, ротация)
+- Роли: **viewer** (чтение), **editor** (CRUD), **admin** (+ управление пользователями)
+- Обязательная смена пароля при первом входе; авто-создание первого администратора
+- Журнал аудита значимых действий; rate limiting на auth (защита от брутфорса)
+
+**Обмен данными и UX**
+- Экспорт CSV и XLSX, импорт CSV (UTF-8 BOM — корректно открывается в Excel)
+- Тёмная тема, оптимизированные стили для печати
+- Сохранение фильтров и состояния между перезагрузками (localStorage)
+
+---
 
 ## 🛠️ Технологический стек
 
 ### Backend
-- **Фреймворк:** FastAPI 0.115.0+
-- **ORM:** SQLAlchemy 2.0.36+ (асинхронный режим)
-- **БД:** PostgreSQL 16 (asyncpg в проде; в тестах — in-memory SQLite через aiosqlite)
-- **Миграции:** Alembic с версионированием
-- **Валидация:** Pydantic v2
-- **API:** OpenAPI (Swagger доступен на `/api/docs`)
+- **Python 3.12+**, **FastAPI** (async)
+- **SQLAlchemy 2.0** (строго асинхронный режим) + **asyncpg**
+- **PostgreSQL 16** (в тестах — in-memory SQLite через aiosqlite)
+- **Alembic** — версионирование схемы (миграции)
+- **Pydantic v2** — валидация на границах системы
+- Аутентификация: **python-jose** (JWT HS256) + **bcrypt**
+- Экспорт Excel: **openpyxl**
 
 ### Frontend
-- **Фреймворк:** Svelte 5 + Vite
-- **Стили:** Tailwind CSS 3.4.0+
-- **UI компоненты:** Bits UI (Headless)
-- **Иконки:** Lucide Svelte
-- **Язык:** TypeScript (типизация из OpenAPI)
+- **Svelte 5** (Runes: `$state` / `$derived` / `$effect`) на **SvelteKit** (adapter-static, SPA)
+- **Vite**, **TypeScript** (strict)
+- **Tailwind CSS** 3.4, headless-компоненты **Bits UI**, иконки **Lucide**
+- Состояние — классы-сторы в `*.svelte.ts`; типы генерируются из OpenAPI
 
-## 📋 Требования
+### Качество и инфраструктура
+- **Ruff** (линт) и **Pyright** (типы) для backend
+- **pytest** (backend) и **Vitest** (frontend)
+- **pre-commit** (ruff + svelte-check), **GitHub Actions** CI
+- **Docker** multi-stage (фронтенд собирается и встраивается в backend-образ)
 
-- **Python:** 3.12+
-- **Node.js:** 18+ (для фронтенда)
-- **Docker:** 20.10+ (опционально, для контейнеризации)
-- **Git:** для версионирования кода
+---
 
-## 🚀 Быстрый старт
+## 🧱 Архитектура
 
-### Локальное развитие (с Docker Compose)
+Строгое слоистое разделение backend — бизнес-логики в роутерах нет:
 
-```bash
-cd D:\Protocol
-
-# Запустить оба сервиса (backend на 8000, frontend на 5173)
-docker-compose -f docker-compose.dev.yml up
-
-# В браузере открыть:
-# - Фронтенд: http://localhost:5173
-# - API Swagger: http://localhost:8000/api/docs
+```
+HTTP (routers) → services (бизнес-логика) → repositories (CRUD) → models (SQLAlchemy)
+                         ↕ schemas (Pydantic, валидация на границе)
 ```
 
-### Локальное развитие (без Docker)
+В продакшне один контейнер отдаёт и API, и собранный Svelte-SPA на `:8000` (фронтенд
+встроен в `static/`), рядом — контейнер PostgreSQL. На фронтенде список задач фильтруется/
+сортируется на клиенте (источник истины для UI), серверные фильтры — для API/экспорта.
 
-#### Backend
-```bash
-cd backend
-
-# Установить зависимости (проект использует pyproject.toml)
-pip install -e ".[dev]"
-
-# Миграции БД
-alembic upgrade head
-
-# Запустить сервер (автозагрузка на изменения)
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-#### Frontend
-```bash
-cd frontend
-
-# Установить зависимости
-npm install
-
-# Запустить dev-сервер (HMR включен)
-npm run dev
-```
+---
 
 ## 📁 Структура проекта
 
@@ -87,152 +96,226 @@ npm run dev
 Protocol/
 ├── backend/
 │   ├── app/
-│   │   ├── models/           # SQLAlchemy модели БД
-│   │   ├── schemas/          # Pydantic валидация
-│   │   ├── repositories/     # CRUD слой
-│   │   ├── services/         # Бизнес-логика
-│   │   ├── routers/          # HTTP эндпоинты
-│   │   ├── main.py           # FastAPI приложение
-│   │   ├── config.py         # Конфигурация
-│   │   └── database.py       # SQLAlchemy engine + session
-│   ├── alembic/              # Миграции БД
-│   ├── tests/                # pytest тесты
-│   ├── pyproject.toml        # Зависимости
+│   │   ├── models/            # SQLAlchemy-модели (item, status, executor, department,
+│   │   │                      #   meeting, user, audit_log, M2M-таблицы)
+│   │   ├── schemas/           # Pydantic-схемы (валидация запросов/ответов)
+│   │   ├── repositories/      # CRUD-слой (generic BaseRepository + конкретные)
+│   │   ├── services/          # Бизнес-логика (items, status, meeting, auth, csv, audit…)
+│   │   ├── routers/           # HTTP-слой (auth, users, departments, executors,
+│   │   │                      #   items, statuses, meetings, export)
+│   │   ├── middleware/        # Rate limiting
+│   │   ├── utils/             # Константы, идентификаторы, время
+│   │   ├── config.py          # Настройки (pydantic-settings)
+│   │   ├── database.py        # Async engine + сессия (get_db)
+│   │   ├── dependencies.py    # Авторизация (get_current_user / require_editor / admin)
+│   │   ├── security.py        # JWT + bcrypt
+│   │   ├── logging_config.py  # Структурированное логирование
+│   │   └── main.py            # Точка входа FastAPI (+ раздача SPA)
+│   ├── alembic/               # Миграции БД
+│   ├── tests/                 # pytest (SQLite; в CI также реальный PostgreSQL)
+│   ├── pyproject.toml         # Зависимости + конфиг ruff/pytest/pyright
 │   └── alembic.ini
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── lib/
-│   │   │   ├── api/          # API клиент
-│   │   │   ├── components/   # Svelte компоненты
-│   │   │   ├── stores/       # Svelte Runes состояние
-│   │   │   └── utils/        # Утилиты
-│   │   ├── routes/           # SvelteKit роуты
-│   │   ├── app.html          # HTML шаблон
-│   │   └── app.css           # Tailwind
+│   │   │   ├── api/           # API-клиент (fetch + авто-refresh токена) и типы
+│   │   │   ├── components/    # Svelte-компоненты (ui / items / refs / common)
+│   │   │   ├── stores/        # Runes-сторы (items, filters, selection, auth, theme…)
+│   │   │   └── utils/         # date / format / constants / itemFilter
+│   │   ├── routes/            # SvelteKit-страницы (/, /login, /meetings, /refs, /admin…)
+│   │   ├── app.html · app.css # Шаблон и Tailwind
 │   ├── package.json
-│   ├── vite.config.ts
-│   ├── tailwind.config.ts
-│   └── svelte.config.js
+│   ├── vite.config.ts · vitest.config.ts · svelte.config.js · tailwind.config.ts
+│   └── tsconfig.json
 │
-├── scripts/                  # seed-данные / утилиты (БД — в Docker volume postgres-data)
-├── docs/                     # Архитектурная документация
-├── docker-compose.yml        # Базовый стек (backend + postgres)
-├── docker-compose.dev.yml    # Development (hot-reload)
-├── docker-compose.prod.yml   # Production (за Nginx)
-├── Dockerfile                # Multi-stage build
-├── CHANGELOG.md              # История версий
-├── BACKLOG.md                # Дорожная карта задач
-└── README.md                 # Этот файл
+├── scripts/                   # seed-данные / утилиты
+├── deploy/                    # nginx.conf (reverse-proxy для прода)
+├── docs/                      # ARCHITECTURE.md, AUDIT_v2.6.9.md
+├── .github/workflows/ci.yml   # CI: ruff, pyright, pytest (SQLite+PG), svelte-check, vitest, docker build
+├── docker-compose.yml         # Базовый стек (backend + postgres, порт 8000)
+├── docker-compose.dev.yml     # Dev: backend hot-reload + frontend HMR (5173)
+├── docker-compose.prod.yml    # Prod: порт 127.0.0.1 (за Nginx), .env обязателен
+├── Dockerfile · Dockerfile.dev
+├── .pre-commit-config.yaml · .env.example
+├── CHANGELOG.md · BACKLOG.md · DEPLOY.md · CLAUDE.md · LICENSE
+└── README.md
 ```
-
-## 📖 API Документация
-
-Полная интерактивная документация доступна после запуска:
-- **Swagger UI:** http://localhost:8000/api/docs
-- **ReDoc:** http://localhost:8000/api/redoc
-
-Основные эндпоинты:
-```
-GET    /api/items                    # Список задач
-POST   /api/items                    # Создать задачу
-GET    /api/items/{id}               # Получить задачу
-PATCH  /api/items/{id}               # Обновить задачу
-DELETE /api/items/{id}               # Удалить задачу
-
-POST   /api/items/{id}/statuses      # Добавить новый статус
-GET    /api/items/{id}/statuses      # История статусов
-
-GET    /api/departments              # Список отделов
-POST   /api/departments              # Создать отдел
-# и т.д.
-
-POST   /api/export/csv               # Экспорт в CSV
-POST   /api/import/csv               # Импорт из CSV
-```
-
-## 🧪 Тестирование
-
-```bash
-# Backend тесты
-cd backend
-pytest -v --cov=app tests/
-
-# Frontend тесты
-cd frontend
-npm run test
-```
-
-## 🐳 Docker Production
-
-```bash
-# Собрать образ
-docker build -t protocol:2.0 .
-
-# Запустить контейнер
-docker run -p 8000:8000 -v $(pwd)/data:/app/data protocol:2.0
-
-# Или через Compose (production)
-docker-compose up -d
-```
-
-## 📝 Разработка
-
-### Соглашения кода
-
-- **Backend:** Python 3.12+ PEP 8, Ruff линтер
-- **Frontend:** TypeScript + Svelte 5, Prettier для форматирования
-- **Комментарии:** Русский язык
-- **Логирование:** Структурированное логирование через Python logging
-- **Безопасность:** Ноль инлайн обработчиков, валидация на границах системы
-
-### Подготовка PR
-
-1. Создайте ветку от `main`: `git checkout -b feat/описание`
-2. Внесите изменения и скоммитьте с чистыми сообщениями
-3. Убедитесь, что тесты проходят: `pytest` / `npm test`
-4. Обновите `CHANGELOG.md`
-5. Создайте PR с описанием изменений
-
-## 📚 Дополнительная документация
-
-- [CHANGELOG.md](CHANGELOG.md) — история версий
-- [BACKLOG.md](BACKLOG.md) — дорожная карта разработки (этапы 1-6)
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — архитектурные решения
-- [docs/AUDIT_v2.6.9.md](docs/AUDIT_v2.6.9.md) — аудит и план точечного рефакторинга
-
-## 🔧 Troubleshooting
-
-### Backend не стартует
-```bash
-# Проверить миграции
-alembic current
-
-# Пересоздать БД
-docker compose -f docker-compose.prod.yml down -v
-docker compose -f docker-compose.prod.yml up -d --build
-# Миграции применятся автоматически при старте приложения (lifespan)
-```
-
-### Frontend не видит API
-Убедитесь, что backend запущен на `http://localhost:8000` и proxy в `vite.config.ts` настроен правильно.
-
-### Ошибки CORS
-Проверьте `app/main.py` — там должны быть разрешены `http://localhost:5173` и другие необходимые origins.
-
-## 📄 Лицензия
-
-Внутренний проект (Self-hosted).
-
-## 👤 Контакты
-
-Разработка: SckraT  
-GitHub: https://github.com/SckraT
 
 ---
 
-**Версия:** 2.7.0  
-**Дата обновления:** 2026-06-06  
-**Статус:** ✅ В продакшне
+## 📋 Требования
 
-См. также: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/AUDIT_v2.6.9.md](docs/AUDIT_v2.6.9.md)
+- **Docker** 20.10+ и Docker Compose — рекомендуемый способ запуска
+- Для запуска без Docker: **Python 3.12+**, **Node.js 20+**, доступный **PostgreSQL 16**
+
+---
+
+## 🚀 Способы запуска
+
+Перед запуском в проде/деплое создайте `.env` (см. [Конфигурация](#-конфигурация)):
+```bash
+cp .env.example .env   # и задайте SECRET_KEY, POSTGRES_PASSWORD, FIRST_ADMIN_*
+```
+
+### Вариант 1 — базовый стек (рекомендуется для локального прогона)
+Backend + PostgreSQL в одном `compose`; фронтенд уже встроен в образ.
+```bash
+docker compose up -d --build
+# Приложение:   http://localhost:8000
+# Swagger UI:    http://localhost:8000/api/docs
+```
+
+### Вариант 2 — режим разработки (hot-reload)
+Backend с авто-перезагрузкой (8000) и фронтенд с HMR (5173) — раздельно.
+```bash
+docker compose -f docker-compose.dev.yml up
+# Фронтенд (HMR): http://localhost:5173
+# API + Swagger:  http://localhost:8000/api/docs
+```
+
+### Вариант 3 — продакшн (за Nginx)
+Порт привязан к `127.0.0.1`, публичный доступ — через reverse-proxy (`deploy/nginx.conf`).
+`.env` обязателен. Подробности — в [DEPLOY.md](DEPLOY.md).
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+### Вариант 4 — локально без Docker
+Нужен запущенный PostgreSQL и переменная `DATABASE_URL`.
+
+**Backend**
+```bash
+cd backend
+pip install -e ".[dev]"                 # проект на pyproject.toml
+export DATABASE_URL=postgresql+asyncpg://protocol:protocol@localhost:5432/protocol
+alembic upgrade head                     # или оставьте миграции на старте (по умолчанию)
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Frontend**
+```bash
+cd frontend
+npm install
+npm run dev                              # http://localhost:5173 (проксирует /api на :8000)
+```
+
+---
+
+## ⚙️ Конфигурация
+
+Переменные окружения (значения по умолчанию — в `app/config.py`, пример — в `.env.example`):
+
+| Переменная | Назначение | По умолчанию |
+|------------|------------|--------------|
+| `DATABASE_URL` | строка подключения PostgreSQL (asyncpg) | `postgresql+asyncpg://protocol:protocol@localhost:5432/protocol` |
+| `POSTGRES_PASSWORD` | пароль БД (используется compose) | `protocol` |
+| `SECRET_KEY` | подпись JWT — **обязателен в проде** (`openssl rand -hex 32`) | dev-заглушка (в проде старт прерывается) |
+| `DEBUG` | режим отладки / SQL-эхо | `False` |
+| `ALLOWED_ORIGINS` | разрешённые CORS-источники (через запятую) | `http://localhost:5173,http://localhost:8000` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | срок жизни access-токена | `30` |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | срок жизни refresh-токена | `7` |
+| `FIRST_ADMIN_USERNAME` / `FIRST_ADMIN_PASSWORD` | первый админ (создаётся при пустой БД) | `admin` / `admin` |
+| `RUN_MIGRATIONS_ON_STARTUP` | применять Alembic-миграции при старте | `True` |
+
+### Первый вход
+При первом запуске с пустой таблицей пользователей автоматически создаётся администратор
+(`FIRST_ADMIN_USERNAME` / `FIRST_ADMIN_PASSWORD`) с флагом обязательной смены пароля — при
+входе система потребует задать новый. **Смените дефолтные значения до первого запуска в проде.**
+
+---
+
+## 📖 API
+
+Интерактивная документация (после запуска):
+- **Swagger UI:** `http://localhost:8000/api/docs`
+- **ReDoc:** `http://localhost:8000/api/redoc`
+
+Основные группы эндпоинтов (полный список и схемы — в Swagger):
+```
+POST   /api/auth/login | /api/auth/refresh        # вход и обновление токена
+GET    /api/auth/me · POST /api/auth/change-password
+
+GET/POST/PATCH/DELETE  /api/items                 # задачи (+ /items/{id})
+GET/POST   /api/items/{id}/statuses · DELETE /api/statuses/{id}   # история статусов
+
+GET/POST/.. /api/departments · /api/executors      # справочники
+GET/POST/.. /api/meetings                          # совещания
+GET/POST/PATCH/DELETE /api/users                   # пользователи (только admin)
+
+POST   /api/export/csv · /api/export/xlsx · /api/import/csv   # обмен данными
+
+GET    /health · /health/detailed                  # health-check (+ статус БД, версия миграции)
+```
+
+### Роли и доступ
+| Роль | Права |
+|------|-------|
+| `viewer` | чтение задач, справочников, совещаний |
+| `editor` | + создание/изменение/удаление задач, статусов, справочников, совещаний |
+| `admin` | + управление пользователями и ролями |
+
+---
+
+## 🧪 Тестирование и качество
+
+```bash
+# Backend
+cd backend
+ruff check app/         # линт
+pyright app/            # проверка типов
+pytest                  # тесты (in-memory SQLite); в CI также прогон на реальном PostgreSQL
+
+# Frontend
+cd frontend
+npm run check           # svelte-check (типы)
+npm run test            # Vitest
+
+# Pre-commit (ruff + svelte-check) — по желанию
+pip install pre-commit && pre-commit install
+```
+
+**CI (GitHub Actions)** на push/PR в `beta` и `main`: `ruff` + `pyright`, `pytest`
+(SQLite и PostgreSQL), `svelte-check` + `vitest`, а на `main` — сборка production-образа.
+
+---
+
+## 🐳 Деплой
+
+Подробная инструкция (Nginx, TLS, бэкапы `pg_dump`, обновление) — в [DEPLOY.md](DEPLOY.md).
+Кратко:
+```bash
+cp .env.example .env    # заполнить SECRET_KEY, POSTGRES_PASSWORD, FIRST_ADMIN_*
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+---
+
+## 📚 Документация
+
+- [CHANGELOG.md](CHANGELOG.md) — история версий (Keep a Changelog)
+- [DEPLOY.md](DEPLOY.md) — развёртывание в продакшн
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — архитектурные решения
+- [docs/AUDIT_v2.6.9.md](docs/AUDIT_v2.6.9.md) — аудит кодовой базы и план рефакторинга
+- [BACKLOG.md](BACKLOG.md) — дорожная карта
+- [CLAUDE.md](CLAUDE.md) — соглашения по версионированию и git-флоу
+
+---
+
+## 🧭 Соглашения разработки
+
+- Backend — PEP 8 + Ruff; типизация под Pyright (без `Any` на границах)
+- Frontend — TypeScript (strict) + Svelte 5 Runes; Prettier
+- Комментарии в коде — на русском; имена — на английском
+- Логирование — через `logging` (структурированный формат), не `print`
+- Ветвление: фичи в `beta` → squash-PR в `main` (стабильная). Подробности — в `CLAUDE.md`
+
+---
+
+## 👤 Контакты
+
+Разработка: **SckraT** · GitHub: <https://github.com/SckraT>
+
+---
+
+**Версия:** 2.7.0 · **Обновлено:** 2026-06-06
