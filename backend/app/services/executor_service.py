@@ -8,7 +8,7 @@ from app.models.user import User
 from app.repositories.department_repository import DepartmentRepository
 from app.repositories.executor_repository import ExecutorRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.executor import ExecutorResponse, ExecutorUpdate, ExecutorUserInfo, ExecutorCreate
+from app.schemas.executor import ExecutorCreate, ExecutorResponse, ExecutorUpdate, ExecutorUserInfo
 
 
 async def sync_executor_name(session: AsyncSession, user: User) -> None:

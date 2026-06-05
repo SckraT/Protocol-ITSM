@@ -2,12 +2,13 @@
 JWT-безопасность: создание/верификация токенов, хэширование паролей.
 Использует python-jose (JWT) и bcrypt напрямую (без passlib — несовместим с bcrypt>=4).
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import bcrypt as _bcrypt
 from jose import JWTError, jwt
 
 from app.config import get_settings
+from app.utils.time import utcnow
 
 settings = get_settings()
 
@@ -36,7 +37,7 @@ def _create_token(data: dict, expires_delta: timedelta) -> str:
     `iat` нужен для будущей инвалидации токенов при смене пароля: можно хранить
     на User `password_changed_at` и отклонять токены, выданные до этой даты.
     """
-    now = datetime.utcnow()
+    now = utcnow()
     payload = data.copy()
     payload["iat"] = now
     payload["exp"] = now + expires_delta

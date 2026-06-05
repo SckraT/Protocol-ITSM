@@ -115,7 +115,7 @@ Protocol/
 │   ├── tailwind.config.ts
 │   └── svelte.config.js
 │
-├── data/                     # SQLite база (volume)
+├── data/                     # Каталог данных (legacy v1; в v2 БД — в Docker volume postgres-data)
 ├── scripts/                  # Миграция данных, seed-ы
 ├── docs/                     # Архитектурная документация
 ├── docker-compose.yml        # Production

@@ -16,10 +16,9 @@
   async function applyState() {
     if (!bulkState) return;
     const ids = selectionStore.ids();
-    for (const id of ids) {
-      await itemsStore.changeState(id, bulkState);
-    }
-    toastStore.success(`Обновлено: ${ids.length}`);
+    const { ok, failed } = await itemsStore.bulkChangeState(ids, bulkState);
+    if (failed === 0) toastStore.success(`Обновлено: ${ok}`);
+    else toastStore.error(`Обновлено: ${ok} из ${ids.length}, ошибок: ${failed}`);
     bulkState = '';
     selectionStore.clear();
   }
@@ -33,9 +32,9 @@
       danger: true
     });
     if (!ok) return;
-    for (const id of ids) {
-      await itemsStore.remove(id);
-    }
+    const { ok: removed, failed } = await itemsStore.bulkRemove(ids);
+    if (failed === 0) toastStore.success(`Удалено: ${removed}`);
+    else toastStore.error(`Удалено: ${removed} из ${ids.length}, ошибок: ${failed}`);
     selectionStore.clear();
   }
 

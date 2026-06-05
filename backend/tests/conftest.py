@@ -11,6 +11,8 @@
 Хелперы сидирования (импортируются в тестах):
   - _seed_user, _seed_department, _seed_executor, _seed_meeting, _seed_item
 """
+import os
+
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -25,8 +27,10 @@ from app.models.meeting import Meeting
 from app.models.user import RoleEnum, User
 from app.security import create_access_token, hash_password
 
-# URL для тестовой in-memory БД
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# URL тестовой БД. По умолчанию — in-memory SQLite (быстро, без внешних зависимостей).
+# В CI отдельный джоб задаёт TEST_DATABASE_URL на реальный PostgreSQL для проверки
+# прод-семантики (ilike/регистр, типы, каскады).
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
 # Пароль сидируемых тестовых пользователей (≥8 символов)
 TEST_PASSWORD = "password123"
@@ -46,6 +50,9 @@ async def async_engine():
     """Создаёт async engine с in-memory SQLite для каждого теста."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
     async with engine.begin() as conn:
+        # drop_all перед create_all обеспечивает чистую схему между тестами на PostgreSQL
+        # (для in-memory SQLite БД и так свежая на каждый engine — drop_all безвреден).
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield engine
     await engine.dispose()

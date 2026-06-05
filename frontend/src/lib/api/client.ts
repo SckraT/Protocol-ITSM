@@ -40,8 +40,23 @@ function extractDetail(detail: unknown): string {
   return String(detail);
 }
 
+// Промис текущего обновления токена. Дедуплицирует параллельные 401: несколько
+// одновременных запросов ждут один refresh, а не запускают несколько (иначе при ротации
+// refresh-токена второй запрос упал бы и разлогинил пользователя).
+let refreshInFlight: Promise<string | null> | null = null;
+
 /** Попытаться обновить access-токен. Возвращает новый токен или null. */
-async function tryRefresh(): Promise<string | null> {
+function tryRefresh(): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = doRefresh().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+/** Выполнить запрос на обновление токена (без дедупликации — см. tryRefresh). */
+async function doRefresh(): Promise<string | null> {
   const refreshToken = localStorage.getItem(LS_REFRESH);
   if (!refreshToken) return null;
 

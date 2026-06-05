@@ -127,12 +127,10 @@ class ItemRepository(BaseRepository[Item]):
 
     async def update_executors(self, item: Item, executor_ids: list[int]) -> None:
         """Обновить список исполнителей задачи."""
-        from app.models.executor import Executor as ExecutorModel
-
-        # Загружаем исполнителей по ID
+        # Загружаем исполнителей по ID (Executor уже импортирован на уровне модуля)
         if executor_ids:
             result = await self.session.execute(
-                select(ExecutorModel).where(ExecutorModel.id.in_(executor_ids))
+                select(Executor).where(Executor.id.in_(executor_ids))
             )
             new_executors = list(result.scalars().all())
         else:

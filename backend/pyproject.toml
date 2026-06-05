@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "protocol-backend"
-version = "2.6.9"
+version = "2.7.0"
 description = "Протокол совещания — бэкенд v2.0"
 requires-python = ">=3.12"
 dependencies = [
@@ -30,6 +30,7 @@ dev = [
     "httpx>=0.27.0",
     "ruff>=0.8.0",
     "aiosqlite>=0.20.0",
+    "pyright>=1.1.390",
 ]
 
 [tool.setuptools.packages.find]
@@ -44,3 +45,20 @@ addopts = "--cov=app --cov-report=term-missing"
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+
+# Единый источник правды для Ruff. CI запускает `ruff check app/` из каталога backend/,
+# поэтому конфигурация линта должна жить здесь (корневой ruff.toml Ruff в этом случае
+# не видит). Раньше правила были в корневом ruff.toml и в CI не применялись.
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N"]
+ignore = ["E501"]  # длину строк контролирует line-length
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F401"]  # импорты без использования в тестах допустимы
+
+# Статическая проверка типов. Прикладной код (app/) держим зелёным в режиме standard.
+# Тесты не проверяем: фикстуры httpx/ASGI дают много шума, не относящегося к проду.
+[tool.pyright]
+include = ["app"]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"

@@ -23,7 +23,7 @@ async def list_users(db: AsyncSession = Depends(get_db)) -> list[UserResponse]:
     """Вернуть всех пользователей. Только Admin."""
     repo = UserRepository(db)
     users = await repo.list(limit=1000)
-    return users
+    return [UserResponse.model_validate(u) for u in users]
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED, summary="Создать пользователя")
@@ -59,7 +59,8 @@ async def create_user(
         first_name=body.first_name,
         middle_name=body.middle_name,
     )
-    return await repo.create(user)
+    created = await repo.create(user)
+    return UserResponse.model_validate(created)
 
 
 @router.patch("/{user_id}", response_model=UserResponse, summary="Обновить пользователя")
@@ -126,7 +127,7 @@ async def update_user(
 
     await repo.session.flush()
     await repo.session.refresh(user)
-    return user
+    return UserResponse.model_validate(user)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Удалить пользователя")
