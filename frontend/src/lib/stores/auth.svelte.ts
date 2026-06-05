@@ -9,6 +9,7 @@ interface AuthUser {
   username: string;
   role: Role;
   displayName: string;
+  mustChangePassword: boolean;
 }
 
 function createAuthStore() {
@@ -26,9 +27,9 @@ function createAuthStore() {
     );
   }
 
-  // Нормализуем восстановленного пользователя: старый формат без displayName → username
+  // Нормализуем восстановленного пользователя: старый формат без новых полей → дефолты
   function _withDisplay(u: AuthUser): AuthUser {
-    return { ...u, displayName: u.displayName || u.username };
+    return { ...u, displayName: u.displayName || u.username, mustChangePassword: u.mustChangePassword ?? false };
   }
 
   // Восстановить сессию из localStorage
@@ -66,8 +67,14 @@ function createAuthStore() {
     access_token: string;
     refresh_token: string;
     display_name: string;
+    must_change_password?: boolean;
   }): void {
-    user = { username: data.username, role: data.role, displayName: data.display_name || data.username };
+    user = {
+      username: data.username,
+      role: data.role,
+      displayName: data.display_name || data.username,
+      mustChangePassword: data.must_change_password ?? false
+    };
     accessToken = data.access_token;
     if (browser) {
       localStorage.setItem(LS_ACCESS, data.access_token);
@@ -88,6 +95,13 @@ function createAuthStore() {
     goto('/login');
   }
 
+  /** Снять флаг обязательной смены пароля (после успешной смены). */
+  function clearPasswordChangeFlag(): void {
+    if (!user) return;
+    user = { ...user, mustChangePassword: false };
+    if (browser) localStorage.setItem(LS_USER, JSON.stringify(user));
+  }
+
   // Восстанавливаем сессию при инициализации модуля
   restore();
 
@@ -102,9 +116,11 @@ function createAuthStore() {
     get isAuthenticated() { return !!accessToken && !!user; },
     get isAdmin() { return user?.role === 'admin'; },
     get isEditor() { return user?.role === 'editor' || user?.role === 'admin'; },
+    get mustChangePassword() { return user?.mustChangePassword ?? false; },
     login,
     logout,
     restore,
+    clearPasswordChangeFlag,
   };
 }
 

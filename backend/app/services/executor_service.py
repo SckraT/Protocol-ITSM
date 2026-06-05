@@ -1,19 +1,28 @@
 """Сервис для работы с исполнителями."""
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.executor import Executor
+from app.models.user import User
 from app.repositories.department_repository import DepartmentRepository
 from app.repositories.executor_repository import ExecutorRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.executor import ExecutorResponse, ExecutorUpdate, ExecutorUserInfo, ExecutorCreate
 
 
-def sync_executor_name(user) -> None:
+async def sync_executor_name(session: AsyncSession, user: User) -> None:
     """Синхронизировать имя привязанного исполнителя с ФИО пользователя.
-    Вызывается при изменении ФИО или привязки УЗ. Если ФИО не задано — не трогаем."""
-    if user.executor and user.last_name:
-        user.executor.name = user.display_name
+    Вызывается при изменении ФИО или привязки УЗ. Если ФИО не задано — не трогаем.
+    Явный SELECT по user_id вместо доступа к user.executor — иначе lazy-load
+    триггерит autoflush во время ожидающего UPDATE, что в async-контексте даёт MissingGreenlet.
+    """
+    if not user.last_name:
+        return
+    result = await session.execute(select(Executor).where(Executor.user_id == user.id))
+    executor = result.scalar_one_or_none()
+    if executor is not None:
+        executor.name = user.display_name
 
 
 def _to_response(executor: Executor) -> ExecutorResponse:
@@ -41,7 +50,7 @@ class ExecutorService:
         self.dept_repo = DepartmentRepository(session)
         self.user_repo = UserRepository(session)
 
-    async def _check_user_free(self, user_id: int, executor_id: int | None):
+    async def _check_user_free(self, user_id: int, executor_id: int | None) -> User:
         """Проверить, что УЗ существует и не занята другим исполнителем. Вернуть пользователя."""
         user = await self.user_repo.get(user_id)
         if not user:

@@ -136,6 +136,10 @@ class ItemService:
                 status_note=data.status_note,
             )
             await self.status_repo.create(status)
+            # Точечно сбрасываем коллекцию statuses созданной задачи: она была загружена
+            # пустой до создания статуса. expire только этой связи (не expire_all — иначе
+            # ленивая подгрузка прочих атрибутов в async-контексте даёт MissingGreenlet).
+            self.repo.session.expire(created, ["statuses"])
 
         # Перезагружаем с полными связями
         item_with_relations = await self.repo.get_with_relations(created.id)

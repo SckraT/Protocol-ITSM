@@ -6,7 +6,7 @@
 
 Приложение состоит из двух независимых частей:
 
-- **`backend/`** — асинхронный API на FastAPI + SQLAlchemy 2.0 (aiosqlite).
+- **`backend/`** — асинхронный API на FastAPI + SQLAlchemy 2.0 (asyncpg / psycopg2-binary).
 - **`frontend/`** — SPA на Svelte 5 + SvelteKit (adapter-static) + Tailwind CSS.
 
 В продакшене всё упаковывается в один Docker-образ: собранный фронтенд (`frontend/dist`)
@@ -31,7 +31,7 @@ repositories/   — доступ к данным: запросы SQLAlchemy, Bas
 models/         — ORM-модели (Mapped[T], mapped_column), связи, каскады
    │
    ▼
-SQLite (WAL) через async engine
+PostgreSQL 16 через async engine
 ```
 
 ### Ключевые принципы
@@ -109,6 +109,6 @@ routes/                 — страницы (SPA): +layout, +page (задачи
 | Слой        | Технологии                                                        |
 | ----------- | ----------------------------------------------------------------- |
 | Backend     | Python 3.12, FastAPI, SQLAlchemy 2.0 (async), Alembic, Pydantic v2 |
-| БД          | SQLite (WAL), aiosqlite, нормализованные M2M-связи                |
+| БД          | PostgreSQL 16 (asyncpg), нормализованные M2M-связи                 |
 | Frontend    | Svelte 5, SvelteKit (adapter-static), Vite, Tailwind CSS, TypeScript |
 | DevOps      | Docker (multi-stage), docker-compose (prod + dev)                 |

@@ -22,6 +22,24 @@ export class ApiError extends Error {
   }
 }
 
+/** Привести detail из тела ошибки к строке.
+ * FastAPI отдаёт detail строкой, объектом (наш 403 must_change_password —
+ * {message, ...}) или массивом (ошибки валидации 422). Возвращаем читаемый текст,
+ * чтобы в UI не появлялось "[object Object]". */
+function extractDetail(detail: unknown): string {
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d) => (d?.msg ?? extractDetail(d))).join('; ');
+  }
+  if (detail && typeof detail === 'object') {
+    const o = detail as Record<string, unknown>;
+    if (typeof o.message === 'string') return o.message;
+    if (typeof o.msg === 'string') return o.msg;
+    return JSON.stringify(detail);
+  }
+  return String(detail);
+}
+
 /** Попытаться обновить access-токен. Возвращает новый токен или null. */
 async function tryRefresh(): Promise<string | null> {
   const refreshToken = localStorage.getItem(LS_REFRESH);
@@ -105,7 +123,7 @@ async function apiFetch(
     let detail = `HTTP ${res.status}`;
     try {
       const body = await res.json();
-      if (body?.detail) detail = body.detail;
+      if (body?.detail) detail = extractDetail(body.detail);
     } catch {
       /* тело не JSON — оставляем статус */
     }

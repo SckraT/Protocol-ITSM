@@ -16,6 +16,7 @@ export interface TokenResponse {
   username: string;
   role: Role;
   display_name: string;
+  must_change_password: boolean;
 }
 
 export interface UserResponse {
@@ -76,4 +77,13 @@ export async function apiLogin(identifier: string, password: string): Promise<To
 /** Обновить access-токен по refresh-токену. */
 export async function apiRefresh(refreshToken: string): Promise<TokenResponse> {
   return post('/auth/refresh', { refresh_token: refreshToken });
+}
+
+/** Сменить собственный пароль (требует старый). */
+export async function apiChangePassword(
+  token: string,
+  oldPassword: string,
+  newPassword: string
+): Promise<void> {
+  await post('/auth/change-password', { old_password: oldPassword, new_password: newPassword }, token);
 }

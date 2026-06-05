@@ -2,6 +2,7 @@
 Пакет моделей SQLAlchemy.
 Импортируем все модели чтобы Alembic видел их метаданные.
 """
+from app.models.audit_log import AuditLog
 from app.models.base import Base
 from app.models.department import Department
 from app.models.executor import Executor
@@ -13,6 +14,7 @@ from app.models.status import Status
 from app.models.user import User
 
 __all__ = [
+    "AuditLog",
     "Base",
     "Department",
     "Executor",

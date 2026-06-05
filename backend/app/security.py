@@ -30,9 +30,16 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def _create_token(data: dict, expires_delta: timedelta) -> str:
-    """Создать JWT-токен с заданным сроком жизни."""
+    """Создать JWT-токен с заданным сроком жизни.
+
+    В payload добавляются `iat` (issued at) и `exp` (expiration).
+    `iat` нужен для будущей инвалидации токенов при смене пароля: можно хранить
+    на User `password_changed_at` и отклонять токены, выданные до этой даты.
+    """
+    now = datetime.utcnow()
     payload = data.copy()
-    payload["exp"] = datetime.utcnow() + expires_delta
+    payload["iat"] = now
+    payload["exp"] = now + expires_delta
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 

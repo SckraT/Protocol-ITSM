@@ -15,7 +15,7 @@ router = APIRouter(prefix="/departments", tags=["Отделы"])
 async def list_departments(
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
-):
+) -> list[DepartmentResponse]:
     """Возвращает все отделы, отсортированные по имени."""
     service = DepartmentService(db)
     return await service.list_all()
@@ -26,7 +26,7 @@ async def create_department(
     body: DepartmentCreate,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_editor),
-):
+) -> DepartmentResponse:
     """Создаёт новый отдел. 409 если имя уже занято."""
     service = DepartmentService(db)
     return await service.create(body)
@@ -38,7 +38,7 @@ async def update_department(
     body: DepartmentUpdate,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_editor),
-):
+) -> DepartmentResponse:
     """Переименовывает отдел. 404 если не найден, 409 если имя занято другим."""
     service = DepartmentService(db)
     return await service.update(dept_id, body)
@@ -49,7 +49,7 @@ async def delete_department(
     dept_id: int,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_editor),
-):
+) -> None:
     """Удаляет отдел. У исполнителей этого отдела department_id → NULL."""
     service = DepartmentService(db)
     await service.delete(dept_id)

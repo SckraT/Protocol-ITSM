@@ -56,7 +56,21 @@ async def get_current_user(
     return user
 
 
-async def require_editor(current_user: User = Depends(get_current_user)) -> User:
+async def forbid_pending_password_change(current_user: User = Depends(get_current_user)) -> User:
+    """
+    Зависимость: блокирует доступ ко всем защищённым ресурсам, пока пользователь
+    не сменил обязательный пароль. Эндпоинты /auth/* (включая change-password) остаются
+    доступны, т.к. на них этот guard не навешивается.
+    """
+    if current_user.must_change_password:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"must_change_password": True, "message": "Требуется смена пароля"},
+        )
+    return current_user
+
+
+async def require_editor(current_user: User = Depends(forbid_pending_password_change)) -> User:
     """Зависимость: editor или admin. Выбрасывает 403 для viewer."""
     if current_user.role == RoleEnum.viewer:
         raise HTTPException(
@@ -66,7 +80,7 @@ async def require_editor(current_user: User = Depends(get_current_user)) -> User
     return current_user
 
 
-async def require_admin(current_user: User = Depends(get_current_user)) -> User:
+async def require_admin(current_user: User = Depends(forbid_pending_password_change)) -> User:
     """Зависимость: только admin. Выбрасывает 403 для viewer и editor."""
     if current_user.role != RoleEnum.admin:
         raise HTTPException(

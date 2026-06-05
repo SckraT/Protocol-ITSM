@@ -83,9 +83,9 @@ class UserCreate(BaseModel):
 
     @field_validator("password")
     @classmethod
-    def password_not_empty(cls, v: str) -> str:
-        if len(v) < 4:
-            raise ValueError("Пароль должен содержать минимум 4 символа")
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Пароль должен содержать минимум 8 символов")
         return v
 
     @field_validator("email", mode="before")
@@ -110,6 +110,13 @@ class UserUpdate(BaseModel):
     last_name: str | None = None
     first_name: str | None = None
     middle_name: str | None = None
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) < 8:
+            raise ValueError("Пароль должен содержать минимум 8 символов")
+        return v
 
     @field_validator("email", mode="before")
     @classmethod

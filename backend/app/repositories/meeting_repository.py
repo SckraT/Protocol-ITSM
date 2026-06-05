@@ -4,7 +4,7 @@
 """
 from collections.abc import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -20,7 +20,7 @@ class MeetingRepository(BaseRepository[Meeting]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(Meeting, session)
 
-    def _base_query(self):
+    def _base_query(self) -> Select[tuple[Meeting]]:
         """Базовый запрос с предзагрузкой участников (и их отделов)."""
         return (
             select(Meeting)

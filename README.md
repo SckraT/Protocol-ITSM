@@ -20,7 +20,7 @@
 ### Backend
 - **Фреймворк:** FastAPI 0.115.0+
 - **ORM:** SQLAlchemy 2.0.36+ (асинхронный режим)
-- **БД:** SQLite (WAL mode) с асинхронным драйвером aiosqlite
+- **БД:** PostgreSQL 16 (asyncpg в проде; в тестах — in-memory SQLite через aiosqlite)
 - **Миграции:** Alembic с версионированием
 - **Валидация:** Pydantic v2
 - **API:** OpenAPI (Swagger доступен на `/api/docs`)
@@ -209,8 +209,9 @@ docker-compose up -d
 alembic current
 
 # Пересоздать БД
-rm data/protocol.db
-alembic upgrade head
+docker compose -f docker-compose.prod.yml down -v
+docker compose -f docker-compose.prod.yml up -d --build
+# Миграции применятся автоматически при старте приложения (lifespan)
 ```
 
 ### Frontend не видит API

@@ -101,11 +101,21 @@ sudo ufw enable
 cd /opt/protocol && git pull && sudo docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-SQLite-база живёт в `/opt/protocol/data/` (volume) и переживает пересборки.
-Миграции Alembic применяются автоматически при старте.
+PostgreSQL-данные живут в Docker volume `postgres-data` (создаётся `docker compose`)
+и переживают пересборки контейнера приложения. Миграции Alembic применяются
+автоматически при старте приложения через `lifespan`.
 
 ## Бэкап
 
 ```bash
-cp /opt/protocol/data/protocol.db ~/protocol-$(date +%F).db
+# Дамп PostgreSQL-базы в файл ~/protocol-YYYY-MM-DD.sql
+docker compose -f docker-compose.prod.yml exec -T postgres \
+    pg_dump -U protocol -d protocol > ~/protocol-$(date +%F).sql
+```
+
+Восстановление из дампа:
+
+```bash
+cat ~/protocol-YYYY-MM-DD.sql | docker compose -f docker-compose.prod.yml exec -T postgres \
+    psql -U protocol -d protocol
 ```

@@ -5,6 +5,7 @@
 import csv
 import io
 from datetime import date as date_type
+from typing import Any
 
 from fastapi import HTTPException, UploadFile
 from openpyxl import Workbook
@@ -40,7 +41,7 @@ _PRIORITY_VALUES = {e.value for e in PriorityEnum}
 _FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 
 
-def _sanitize_cell(value):
+def _sanitize_cell(value: Any) -> Any:
     """Нейтрализовать formula injection в строковых ячейках экспорта."""
     if isinstance(value, str) and value and value[0] in _FORMULA_PREFIXES:
         return "'" + value
@@ -82,7 +83,7 @@ class CsvService:
         self.item_repo = ItemRepository(session)
         self.exec_repo = ExecutorRepository(session)
 
-    def _executor_str(self, executors: list) -> str:
+    def _executor_str(self, executors: list[Executor]) -> str:
         """Форматирует список исполнителей: 'Отдел — Имя | Имя2'."""
         parts = []
         for e in executors:

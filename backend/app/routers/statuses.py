@@ -16,7 +16,7 @@ async def list_statuses(
     item_id: int,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
-):
+) -> list[StatusResponse]:
     """Возвращает все статусы задачи в обратном хронологическом порядке."""
     service = StatusService(db)
     return await service.list_for_item(item_id)
@@ -33,7 +33,7 @@ async def add_status(
     body: StatusCreate,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_editor),
-):
+) -> StatusResponse:
     """Добавляет новую запись в историю статусов задачи."""
     service = StatusService(db)
     return await service.add(item_id, body)
@@ -44,7 +44,7 @@ async def delete_status(
     status_id: int,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_editor),
-):
+) -> None:
     """Удаляет одну запись из истории статусов."""
     service = StatusService(db)
     await service.delete(status_id)

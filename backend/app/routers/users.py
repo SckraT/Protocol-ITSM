@@ -2,7 +2,7 @@
 Роутер управления пользователями (только Admin).
 CRUD операции: список, создание, обновление роли/статуса/пароля, удаление.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -11,6 +11,7 @@ from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.security import hash_password
+from app.services.audit_service import log_event
 from app.services.executor_service import sync_executor_name
 
 # Весь роутер доступен только Admin — guard на уровне роутера.
@@ -18,7 +19,7 @@ router = APIRouter(prefix="/users", tags=["Пользователи"], dependenc
 
 
 @router.get("", response_model=list[UserResponse], summary="Список пользователей")
-async def list_users(db: AsyncSession = Depends(get_db)):
+async def list_users(db: AsyncSession = Depends(get_db)) -> list[UserResponse]:
     """Вернуть всех пользователей. Только Admin."""
     repo = UserRepository(db)
     users = await repo.list(limit=1000)
@@ -29,7 +30,7 @@ async def list_users(db: AsyncSession = Depends(get_db)):
 async def create_user(
     body: UserCreate,
     db: AsyncSession = Depends(get_db),
-):
+) -> UserResponse:
     """Создать нового пользователя. Только Admin."""
     repo = UserRepository(db)
 
@@ -65,9 +66,10 @@ async def create_user(
 async def update_user(
     user_id: int,
     body: UserUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
-):
+) -> UserResponse:
     """Обновить роль, статус или пароль пользователя. Только Admin."""
     repo = UserRepository(db)
     user = await repo.get(user_id)
@@ -86,6 +88,11 @@ async def update_user(
             )
 
     if body.role is not None:
+        if body.role != user.role:
+            await log_event(
+                db, "role_change", request=request, username=admin.username,
+                payload={"target": user.username, "old_role": user.role, "new_role": body.role.value},
+            )
         user.role = body.role
     if body.is_active is not None:
         user.is_active = body.is_active
@@ -115,7 +122,7 @@ async def update_user(
         user.middle_name = body.middle_name
 
     # Синхрон имени привязанного исполнителя из ФИО
-    sync_executor_name(user)
+    await sync_executor_name(db, user)
 
     await repo.session.flush()
     await repo.session.refresh(user)
@@ -127,7 +134,7 @@ async def delete_user(
     user_id: int,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
-):
+) -> None:
     """Удалить пользователя. Только Admin. Нельзя удалить себя."""
     if user_id == admin.id:
         raise HTTPException(

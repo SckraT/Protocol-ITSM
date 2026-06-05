@@ -48,14 +48,26 @@ class AuthService:
         return self._build_token_response(user)
 
     async def create_first_admin(self, username: str, password: str) -> User:
-        """Создать первого Admin-пользователя (вызывается при пустой таблице users)."""
+        """Создать первого Admin-пользователя (вызывается при пустой таблице users).
+        must_change_password=True — заставляет сменить дефолтный пароль при первом входе."""
         user = User(
             username=username,
             hashed_password=hash_password(password),
             role=RoleEnum.admin,
             is_active=True,
+            must_change_password=True,
         )
         return await self.repo.create(user)
+
+    async def change_password(self, user: User, old_password: str, new_password: str) -> None:
+        """Сменить пароль текущего пользователя. Проверяет старый пароль."""
+        if not verify_password(old_password, user.hashed_password):
+            raise ValueError("Неверный текущий пароль")
+        if len(new_password) < 8:
+            raise ValueError("Новый пароль должен содержать минимум 8 символов")
+        user.hashed_password = hash_password(new_password)
+        user.must_change_password = False
+        await self.repo.session.flush()
 
     def _build_token_response(self, user: User) -> TokenResponse:
         """Собрать ответ с access и refresh токенами."""
@@ -65,4 +77,5 @@ class AuthService:
             username=user.username,
             role=user.role,
             display_name=user.display_name,
+            must_change_password=user.must_change_password,
         )

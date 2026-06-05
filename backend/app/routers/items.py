@@ -24,7 +24,7 @@ async def list_items(
     page_size: int = Query(1000, ge=1, le=5000, description="Размер страницы"),
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
-):
+) -> PaginatedResponse[ItemResponse]:
     """Возвращает список задач с опциональной фильтрацией и пагинацией."""
     service = ItemService(db)
     return await service.list_items(
@@ -44,7 +44,7 @@ async def get_item(
     item_id: int,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
-):
+) -> ItemResponse:
     """Возвращает полные данные задачи по ID."""
     service = ItemService(db)
     return await service.get_item(item_id)
@@ -55,7 +55,7 @@ async def create_item(
     body: ItemCreate,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_editor),
-):
+) -> ItemResponse:
     """Создаёт новую задачу, опционально с начальным статусом."""
     service = ItemService(db)
     return await service.create_item(body)
@@ -67,7 +67,7 @@ async def update_item(
     body: ItemUpdate,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_editor),
-):
+) -> ItemResponse:
     """Частично обновляет задачу (PATCH). Обновляются только переданные поля."""
     service = ItemService(db)
     return await service.update_item(item_id, body)
@@ -78,7 +78,7 @@ async def delete_item(
     item_id: int,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_editor),
-):
+) -> None:
     """Удаляет задачу со всеми статусами и привязками к исполнителям."""
     service = ItemService(db)
     await service.delete_item(item_id)

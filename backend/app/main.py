@@ -26,8 +26,9 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
-from app.database import engine, get_db
-from app.dependencies import get_current_user
+from app.database import engine
+from app.dependencies import forbid_pending_password_change
+from app.middleware.rate_limit import RateLimitMiddleware
 from app.routers.auth import router as auth_router
 from app.routers.departments import router as departments_router
 from app.routers.executors import router as executors_router
@@ -86,6 +87,15 @@ async def lifespan(app: FastAPI):
             flush=True,
         )
 
+    # CORS: в проде ALLOWED_ORIGINS должен указывать боевой домен, не localhost.
+    # В дев-режиме localhost ожидаем — не предупреждаем.
+    if not settings.DEBUG and "localhost" in settings.ALLOWED_ORIGINS:
+        print(
+            "[security] ВНИМАНИЕ: ALLOWED_ORIGINS содержит 'localhost' в не-DEBUG режиме! "
+            "Задайте боевой домен в .env (например, https://protocol.example.com).",
+            flush=True,
+        )
+
     # Seed первого Admin (если таблица users пуста)
     await _seed_first_admin()
 
@@ -128,25 +138,30 @@ async def _seed_first_admin() -> None:
 app = FastAPI(
     title="Протокол совещания v2.0",
     description="API для управления задачами протокола совещания",
-    version="2.5.1",
+    version="2.6.9",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
     lifespan=lifespan,
 )
 
-# CORS — разрешаем фронтенд в dev-режиме
+# CORS — разрешаем фронтенд. Origins из настроек; методы/заголовки сужены до фактически
+# используемых (не wildcard) — принцип наименьших привилегий.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+
+# Rate limiting на auth-эндпоинты (защита от брутфорса)
+app.add_middleware(RateLimitMiddleware)
 
 # Базовый guard «требуется авторизация» на уровне роутера — чтобы новый эндпоинт
 # по умолчанию был закрыт, а не открыт (мутации дополнительно требуют require_editor).
-_auth = [Depends(get_current_user)]
+# Также блокирует доступ, пока не сменён обязательный пароль (forbid_pending_password_change).
+_auth = [Depends(forbid_pending_password_change)]
 
 # /auth — открыт (login/refresh); /users — уже под require_admin на уровне роутера.
 app.include_router(auth_router, prefix="/api")
@@ -163,7 +178,35 @@ app.include_router(import_router, prefix="/api", dependencies=_auth)
 @app.get("/health", tags=["Система"], summary="Health check")
 async def health_check():
     """Проверка работоспособности сервиса."""
-    return {"status": "ok", "version": "2.5.1"}
+    return {"status": "ok", "version": "2.6.9"}
+
+
+@app.get("/health/detailed", tags=["Система"], summary="Расширенный health check")
+async def health_detailed():
+    """Проверка соединения с БД и текущей версии миграции Alembic."""
+    from sqlalchemy import text
+
+    db_ok = False
+    alembic_version: str | None = None
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+            db_ok = True
+            result = await conn.execute(text("SELECT version_num FROM alembic_version"))
+            row = result.first()
+            alembic_version = row[0] if row else None
+    except Exception:
+        db_ok = False
+
+    return JSONResponse(
+        status_code=200 if db_ok else 503,
+        content={
+            "status": "ok" if db_ok else "degraded",
+            "version": app.version,
+            "database": "ok" if db_ok else "unavailable",
+            "alembic_version": alembic_version,
+        },
+    )
 
 
 # Раздача статики (собранный фронтенд SPA) — только если директория существует.

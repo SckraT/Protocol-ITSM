@@ -3,6 +3,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.executor import Executor
 from app.schemas.common import PriorityEnum, StateEnum
 
 
@@ -16,7 +17,7 @@ class ExecutorInItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     @classmethod
-    def from_executor(cls, executor) -> "ExecutorInItem":
+    def from_executor(cls, executor: Executor) -> "ExecutorInItem":
         """Собрать из ORM-объекта Executor (с предзагруженным department)."""
         return cls(
             id=executor.id,

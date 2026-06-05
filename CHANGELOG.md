@@ -5,7 +5,166 @@
 
 ---
 
-## [Unreleased]
+## [2.6.9] — 2026-06-05
+
+### Добавлено
+- **CI: GitHub Actions** (`.github/workflows/ci.yml`). Запускается на push/PR в `beta` и `main`.
+  Четыре параллельных джоба:
+  - `lint` — `ruff check` (backend); фронтенд проверяется `svelte-check` в `check-frontend`
+  - `test-backend` — `pytest -v` с покрытием; артефакт `.coverage` загружается при любом исходе
+  - `check-frontend` — `npm run check` (svelte-check + tsc), кэш npm
+  - `docker-build` — `docker build` production-образа, **только push в main** (after lint+tests)
+  
+  Concurrency-группа отменяет устаревшие запуски для той же ветки/PR. Production-стек
+  (asyncpg) валидируется docker-build, тесты работают на in-memory SQLite (aiosqlite).
+- **Тесты: расширение покрытия по итогам аудита.** Новые файлы:
+  - `test_meetings_api.py` — CRUD совещаний, поиск, RBAC (16 тестов)
+  - `test_executors_api.py` — CRUD исполнителей, привязка к отделу/УЗ, RBAC (15 тестов)
+  - `test_users_api.py` — управление пользователями (admin), self-protection,
+    audit-логирование role_change, синхронизация имени исполнителя (20 тестов)
+  - `test_statuses_api.py` — история статусов задачи, хронологический порядок, RBAC (10 тестов)
+- **`pytest-cov`** в dev-зависимостях; `--cov=app --cov-report=term-missing` в addopts.
+- **`aiosqlite`** явно в dev-deps (раньше — транзитивная зависимость, теперь зафиксирована).
+- **Хелперы сидирования** в `conftest.py`: `_seed_department`, `_seed_executor`,
+  `_seed_meeting`, `_seed_item` (с поддержкой опциональных связей — отделы, УЗ, участники,
+  начальный статус). Расширен `_seed_user` (ФИО, email, phone).
+
+### Безопасность
+- **JWT: добавлен `iat` (issued at) claim** в `_create_token()`. База для будущей
+  инвалидации токенов при смене пароля: можно хранить `password_changed_at` на User
+  и отклонять токены, выданные до этой даты.
+- **`LoginRequest`: ограничены размеры полей.** `identifier` ≤ 255 символов
+  (защита от брутфорса с мегабайтными строками), `password` 1..128. Добавлен импорт `Field`.
+- **CORS+localhost warning** в `lifespan`: при `DEBUG=False` и наличии `localhost`
+  в `ALLOWED_ORIGINS` печатается предупреждение в stderr (признак недонастроенного деплоя).
+
+### Исправлено
+- **`sync_executor_name` латентно падал с `MissingGreenlet` в async-контексте.**
+  Функция обращалась к `user.executor` — lazy-load триггерил autoflush на ещё не
+  закоммиченных изменениях, что в async даёт `MissingGreenlet`. Переведена в `async`,
+  теперь делает явный `SELECT` по `Executor.user_id` вместо доступа к relationship.
+  Обнаружено тестом `test_create_user_with_executor_sync` при расширении покрытия.
+- **Удалены неиспользуемые импорты** (`item.py`: `datetime`; `meeting.py`: `String`;
+  `executor_repository.py`: `outerjoin`; `item_repository.py`: `noload`) — `ruff check`
+  падал в новом CI-джобе `lint`.
+- **На странице показывалось «[object Object]».** HTTP-клиент (`client.ts`) клал в
+  `ApiError` поле `detail` как есть. Когда бэкенд отдавал `detail` объектом
+  (403 `must_change_password` — `{message, ...}`) или массивом (ошибки валидации 422),
+  в UI выводилось `[object Object]`. Добавлен `extractDetail()` — приводит `detail`
+  к читаемой строке (`message`/`msg`/конкатенация/JSON).
+
+### Типизация
+- **Return type annotations для всех 33 endpoint-функций роутеров** (`auth`, `users`,
+  `departments`, `executors`, `items`, `meetings`, `statuses`, `export`). Тип берётся
+  из `response_model=` и фиксируется в сигнатуре — mypy/pyright теперь проверяют
+  соответствие. `change-password` — `dict[str, str]`, `import_csv` — `dict[str, int]`.
+- **Починены типы внутренних хелперов (7 функций):**
+  - `repositories/meeting_repository.py:23` — `_base_query()` → `Select[tuple[Meeting]]`
+  - `repositories/item_repository.py:25` — `_base_query()` → `Select[tuple[Item]]`
+  - `services/csv_service.py:43` — `_sanitize_cell(value: Any) -> Any`
+  - `services/csv_service.py:85` — `_executor_str(self, executors: list[Executor])`
+  - `services/executor_service.py:12` — `sync_executor_name(user: User)`
+  - `services/executor_service.py:44` — `_check_user_free(...) -> User`
+  - `schemas/item.py:19` — `from_executor(cls, executor: Executor)`
+
+### Документация
+- `docs/Audit_Result_TZ.md` — ТЗ по итогам комплексного аудита (CI/CD, тесты, безопасность,
+  типизация, документация).
+- **Удалены устаревшие ссылки на SQLite/aiosqlite:**
+  - `docs/ARCHITECTURE.md` — 3 места (обзор, диаграмма слоёв, таблица технологий) — заменены на PostgreSQL 16 / asyncpg
+  - `README.md` — стек (`SQLite (WAL)` → `PostgreSQL 16 (asyncpg в проде; в тестах — in-memory SQLite через aiosqlite)`)
+  - `README.md` — раздел troubleshooting (`rm data/protocol.db` → пересоздание Docker volume)
+  - `DEPLOY.md` — описание volume (`/opt/protocol/data/` → `postgres-data` volume) и секция бэкапа
+    (`cp protocol.db` → `pg_dump` + инструкция по восстановлению через `psql`)
+- **`LICENSE`** — MIT, копирайт 2026. Стандарт для internal-проекта с потенциалом open-source.
+  Замените `Протокол совещаний contributors` на актуального правообладателя при необходимости.
+
+---
+
+## [2.6.8] — 2026-06-05
+
+### Добавлено
+- **Аудит-лог.** Таблица `audit_log` (миграция 0007) фиксирует события безопасности:
+  `login_success`, `login_failed`, `password_change`, `role_change` (с актором и старой/новой
+  ролью), `export_csv`, `export_xlsx`, `import_csv` (со счётчиком). Каждая запись содержит
+  IP, User-Agent и произвольный payload. `failed_login` фиксируется явным commit (не теряется
+  при rollback от 401). Покрыт тестом.
+
+---
+
+## [2.6.7] — 2026-06-05
+
+### Добавлено
+- **Эндпоинт `GET /health/detailed`** — проверка соединения с БД и текущей версии
+  миграции Alembic (`alembic_version`). 503 при недоступной БД. Для мониторинга деплоя.
+
+---
+
+## [2.6.6] — 2026-06-05
+
+### Удалено
+- **Мёртвый код:** неиспользуемый метод `StatusRepository.get_recent()`.
+
+---
+
+## [2.6.5] — 2026-06-05
+
+### Тесты
+- **Восстановлен и расширен тестовый набор.** Существующие тесты (items, departments)
+  были сломаны с момента ввода авторизации (v2.1) — возвращали 401. `conftest.py` теперь
+  предоставляет аутентифицированные фикстуры (`client`=admin, `editor_client`,
+  `viewer_client`, `anon_client`) и сидирование пользователей.
+- Новые тесты: `test_auth.py` (вход по username/email/телефону, refresh, неактивный юзер,
+  флаг смены пароля), `test_permissions.py` (гарды viewer/editor/admin, блокировка при
+  must_change_password), `test_export.py` (экранирование formula injection в CSV/XLSX).
+  Итого 34 теста, все зелёные. Изоляция rate-limiter между тестами (`reset_rate_limit`).
+
+### Исправлено
+- **Inline-статус при создании задачи не отображался в ответе.** При создании задачи с
+  `status_note`/`status_date` статус сохранялся в БД, но ответ показывал `status_count=0`
+  и пустой `recent_statuses` (устаревшая коллекция из identity-map). Добавлен точечный
+  `expire` связи `statuses` перед перезагрузкой. Баг найден новыми тестами.
+
+---
+
+## [2.6.4] — 2026-06-05
+
+### Безопасность
+- **Минимальная длина пароля 8 символов** при создании пользователя, обновлении пароля
+  админом и смене своего пароля (`UserCreate`, `UserUpdate`, `ChangePasswordRequest`).
+  Вход (`LoginRequest`) не валидируется — существующие учётки продолжают работать.
+  Без обязательных спецсимволов (длина важнее состава).
+
+---
+
+## [2.6.3] — 2026-06-05
+
+### Безопасность
+- **Сужен CORS.** `allow_methods` и `allow_headers` больше не `*` — только фактически
+  используемые методы (GET/POST/PATCH/PUT/DELETE/OPTIONS) и заголовки
+  (`Authorization`, `Content-Type`). Origins по-прежнему из настроек.
+
+---
+
+## [2.6.2] — 2026-06-05
+
+### Безопасность
+- **Принудительная смена пароля.** У пользователя появился флаг `must_change_password`;
+  для seed-администратора он ставится `True` — при первом входе требуется сменить
+  дефолтный пароль. Пока пароль не сменён, защищённые эндпоинты возвращают 403
+  (`forbid_pending_password_change`), доступны только `/auth/*`.
+- Новый эндпоинт `POST /api/auth/change-password` (старый + новый пароль, мин. 8 символов).
+- Фронтенд: страница `/change-password`, автоматический редирект на неё при установленном
+  флаге (guard в layout). Миграция `0006`.
+
+---
+
+## [2.6.1] — 2026-06-05
+
+### Безопасность
+- **Rate limiting на эндпоинты аутентификации.** In-memory sliding-window лимитер:
+  `/api/auth/login` — 5 запросов/мин, `/api/auth/refresh` — 10/мин на IP. Превышение →
+  429 с заголовком `Retry-After`. Защита от брутфорса. Новый `app/middleware/rate_limit.py`.
 
 ---
 

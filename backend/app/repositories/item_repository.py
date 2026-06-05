@@ -4,9 +4,9 @@
 """
 from collections.abc import Sequence
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import noload, selectinload
+from sqlalchemy.orm import selectinload
 
 from app.models.executor import Executor
 from app.models.item import Item
@@ -22,7 +22,7 @@ class ItemRepository(BaseRepository[Item]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(Item, session)
 
-    def _base_query(self):
+    def _base_query(self) -> Select[tuple[Item]]:
         """Базовый запрос с предзагрузкой связанных объектов."""
         return (
             select(Item)

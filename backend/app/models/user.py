@@ -31,6 +31,8 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(nullable=False)
     role: Mapped[str] = mapped_column(default=RoleEnum.viewer, nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    # Флаг обязательной смены пароля (ставится для seed-admin до первой смены)
+    must_change_password: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     # ФИО (Фамилия/Имя/Отчество). Обязательность — на уровне схем, в БД nullable.
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)

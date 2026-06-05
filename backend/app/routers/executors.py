@@ -16,7 +16,7 @@ router = APIRouter(prefix="/executors", tags=["Исполнители"])
 async def list_executors(
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
-):
+) -> list[ExecutorResponse]:
     """Возвращает всех исполнителей с именами отделов."""
     service = ExecutorService(db)
     return await service.list_all()
@@ -26,7 +26,7 @@ async def list_executors(
 async def user_options(
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_editor),
-):
+) -> list[ExecutorUserInfo]:
     """Краткий список учётных записей (id + username) для выбора привязки. Доступно editor."""
     repo = UserRepository(db)
     users = await repo.list(limit=1000)
@@ -38,7 +38,7 @@ async def create_executor(
     body: ExecutorCreate,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_editor),
-):
+) -> ExecutorResponse:
     """Создаёт нового исполнителя. 409 если имя занято."""
     service = ExecutorService(db)
     return await service.create(body)
@@ -50,7 +50,7 @@ async def update_executor(
     body: ExecutorUpdate,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_editor),
-):
+) -> ExecutorResponse:
     """Обновляет имя и/или отдел исполнителя."""
     service = ExecutorService(db)
     return await service.update(executor_id, body)
@@ -61,7 +61,7 @@ async def delete_executor(
     executor_id: int,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(require_editor),
-):
+) -> None:
     """Удаляет исполнителя из справочника."""
     service = ExecutorService(db)
     await service.delete(executor_id)

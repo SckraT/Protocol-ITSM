@@ -19,6 +19,7 @@
 
   // Определяем, находимся ли мы на странице /login
   const isLoginPage = $derived($page.url.pathname === '/login');
+  const isChangePwPage = $derived($page.url.pathname === '/change-password');
 
   onMount(async () => {
     // Auth guard: перенаправляем неавторизованных на /login
@@ -38,6 +39,13 @@
     }
   });
 
+  // Guard: пока требуется смена пароля — держим пользователя на /change-password
+  $effect(() => {
+    if (authStore.isAuthenticated && authStore.mustChangePassword && !isChangePwPage) {
+      goto('/change-password');
+    }
+  });
+
   // Счётчик просроченных задач в заголовке вкладки
   $effect(() => {
     if (isLoginPage) return;
@@ -52,8 +60,8 @@
   ];
 </script>
 
-{#if isLoginPage}
-  <!-- Страница входа — без шапки и навигации -->
+{#if isLoginPage || isChangePwPage}
+  <!-- Вход / обязательная смена пароля — без шапки и навигации -->
   {@render children()}
 {:else}
   <div class="min-h-screen bg-[var(--bg-body)] text-[var(--text-body)]">

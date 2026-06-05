@@ -3,7 +3,7 @@ from collections.abc import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import outerjoin, selectinload
+from sqlalchemy.orm import selectinload
 
 from app.models.department import Department
 from app.models.executor import Executor

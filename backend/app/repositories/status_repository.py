@@ -22,13 +22,3 @@ class StatusRepository(BaseRepository[Status]):
             .order_by(Status.status_date.desc().nullslast(), Status.id.desc())
         )
         return result.scalars().all()
-
-    async def get_recent(self, item_id: int, limit: int = 3) -> Sequence[Status]:
-        """Получить N последних статусов задачи."""
-        result = await self.session.execute(
-            select(Status)
-            .where(Status.item_id == item_id)
-            .order_by(Status.status_date.desc().nullslast(), Status.id.desc())
-            .limit(limit)
-        )
-        return result.scalars().all()
