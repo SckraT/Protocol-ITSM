@@ -24,19 +24,24 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.config import get_settings
-from app.database import engine
+from app.database import async_session, engine
 from app.dependencies import forbid_pending_password_change
+from app.logging_config import configure_logging, logger
 from app.middleware.rate_limit import RateLimitMiddleware
+from app.repositories.user_repository import UserRepository
 from app.routers.auth import router as auth_router
 from app.routers.departments import router as departments_router
 from app.routers.executors import router as executors_router
-from app.routers.export import import_router, router as export_router
+from app.routers.export import import_router
+from app.routers.export import router as export_router
 from app.routers.items import router as items_router
 from app.routers.meetings import router as meetings_router
 from app.routers.statuses import router as statuses_router
 from app.routers.users import router as users_router
+from app.services.auth_service import AuthService
 
 settings = get_settings()
 
@@ -51,21 +56,28 @@ async def lifespan(app: FastAPI):
     - При старте: запускаем миграции Alembic.
     - При остановке: закрываем engine.
     """
-    # Запуск миграций Alembic (создаёт/обновляет схему БД).
-    # Используем модуль alembic.config (python -m alembic не работает — нет __main__).
-    backend_dir = Path(__file__).parent.parent
-    result = subprocess.run(
-        [sys.executable, "-m", "alembic.config", "upgrade", "head"],
-        cwd=str(backend_dir),
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        # Реальный сбой миграции нельзя глотать: иначе приложение поднимется
-        # на неполной схеме и будет отдавать 500 на запросах. Прерываем старт.
-        print(f"[alembic] ОШИБКА применения миграций:\n{result.stderr}", flush=True)
-        raise RuntimeError("Не удалось применить миграции Alembic — запуск прерван")
-    print("[alembic] Миграции применены успешно", flush=True)
+    # Настраиваем логирование как можно раньше в жизненном цикле.
+    configure_logging(debug=settings.DEBUG)
+
+    # Запуск миграций Alembic (создаёт/обновляет схему БД). Можно отключить через
+    # RUN_MIGRATIONS_ON_STARTUP=False, если миграции применяются отдельным шагом.
+    if settings.RUN_MIGRATIONS_ON_STARTUP:
+        # Используем модуль alembic.config (python -m alembic не работает — нет __main__).
+        backend_dir = Path(__file__).parent.parent
+        result = subprocess.run(
+            [sys.executable, "-m", "alembic.config", "upgrade", "head"],
+            cwd=str(backend_dir),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            # Реальный сбой миграции нельзя глотать: иначе приложение поднимется
+            # на неполной схеме и будет отдавать 500 на запросах. Прерываем старт.
+            logger.error("[alembic] ОШИБКА применения миграций:\n%s", result.stderr)
+            raise RuntimeError("Не удалось применить миграции Alembic — запуск прерван")
+        logger.info("[alembic] Миграции применены успешно")
+    else:
+        logger.info("[alembic] Пропуск миграций при старте (RUN_MIGRATIONS_ON_STARTUP=False)")
 
     # Проверка небезопасных дефолтов. В проде дефолтный SECRET_KEY фатален
     # (ключ публичен в репозитории — атакующий подпишет любой admin-JWT).
@@ -76,24 +88,22 @@ async def lifespan(app: FastAPI):
                 "Дефолтный SECRET_KEY недопустим в продакшне. "
                 "Задайте SECRET_KEY в .env (openssl rand -hex 32)."
             )
-        print("[security] ВНИМАНИЕ: дефолтный SECRET_KEY (только для dev)!", flush=True)
+        logger.warning("[security] ВНИМАНИЕ: дефолтный SECRET_KEY (только для dev)!")
 
     # Дефолтный пароль администратора — громкое предупреждение (действует только
     # при пустой таблице users, поэтому не фатально).
     if settings.FIRST_ADMIN_PASSWORD == "admin":
-        print(
+        logger.warning(
             "[security] ВНИМАНИЕ: используется дефолтный пароль администратора 'admin'! "
-            "Смените FIRST_ADMIN_PASSWORD в .env до первого запуска.",
-            flush=True,
+            "Смените FIRST_ADMIN_PASSWORD в .env до первого запуска."
         )
 
     # CORS: в проде ALLOWED_ORIGINS должен указывать боевой домен, не localhost.
     # В дев-режиме localhost ожидаем — не предупреждаем.
     if not settings.DEBUG and "localhost" in settings.ALLOWED_ORIGINS:
-        print(
+        logger.warning(
             "[security] ВНИМАНИЕ: ALLOWED_ORIGINS содержит 'localhost' в не-DEBUG режиме! "
-            "Задайте боевой домен в .env (например, https://protocol.example.com).",
-            flush=True,
+            "Задайте боевой домен в .env (например, https://protocol.example.com)."
         )
 
     # Seed первого Admin (если таблица users пуста)
@@ -111,11 +121,7 @@ async def _seed_first_admin() -> None:
     Использует прямой async_session (не get_db), чтобы явно вызвать commit.
     get_db — генератор; break не вызывает код после yield, commit не выполняется.
     """
-    from app.database import async_session as make_session
-    from app.repositories.user_repository import UserRepository
-    from app.services.auth_service import AuthService
-
-    async with make_session() as session:
+    async with async_session() as session:
         try:
             repo = UserRepository(session)
             count = await repo.count_all()
@@ -126,19 +132,19 @@ async def _seed_first_admin() -> None:
                     password=settings.FIRST_ADMIN_PASSWORD,
                 )
                 await session.commit()
-                print(f"[auth] Создан первый Admin: {user.username}", flush=True)
+                logger.info("[auth] Создан первый Admin: %s", user.username)
             else:
-                print(f"[auth] Пользователи уже существуют ({count}), пропускаем seed", flush=True)
-        except Exception as exc:
+                logger.info("[auth] Пользователи уже существуют (%d), пропускаем seed", count)
+        except Exception:
             await session.rollback()
-            print(f"[auth] Ошибка при создании первого Admin: {exc}", flush=True)
+            logger.exception("[auth] Ошибка при создании первого Admin")
 
 
 # Инициализация FastAPI
 app = FastAPI(
     title="Протокол совещания v2.0",
     description="API для управления задачами протокола совещания",
-    version="2.6.9",
+    version="2.7.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
@@ -178,14 +184,12 @@ app.include_router(import_router, prefix="/api", dependencies=_auth)
 @app.get("/health", tags=["Система"], summary="Health check")
 async def health_check():
     """Проверка работоспособности сервиса."""
-    return {"status": "ok", "version": "2.6.9"}
+    return {"status": "ok", "version": "2.7.0"}
 
 
 @app.get("/health/detailed", tags=["Система"], summary="Расширенный health check")
 async def health_detailed():
     """Проверка соединения с БД и текущей версии миграции Alembic."""
-    from sqlalchemy import text
-
     db_ok = False
     alembic_version: str | None = None
     try:

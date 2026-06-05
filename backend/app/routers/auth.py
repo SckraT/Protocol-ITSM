@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.user import User
+from app.models.user import RoleEnum, User
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
@@ -65,7 +65,7 @@ async def get_me(current_user: User = Depends(get_current_user)) -> MeResponse:
     return MeResponse(
         id=current_user.id,
         username=current_user.username,
-        role=current_user.role,
+        role=RoleEnum(current_user.role),
         is_active=current_user.is_active,
         display_name=current_user.display_name,
         must_change_password=current_user.must_change_password,

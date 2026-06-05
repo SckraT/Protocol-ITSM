@@ -75,7 +75,7 @@ class AuthService:
             access_token=create_access_token(user.username, user.role),
             refresh_token=create_refresh_token(user.username),
             username=user.username,
-            role=user.role,
+            role=RoleEnum(user.role),
             display_name=user.display_name,
             must_change_password=user.must_change_password,
         )

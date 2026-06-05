@@ -5,6 +5,92 @@
 
 ---
 
+## [2.7.0] — 2026-06-05
+
+Точечный рефакторинг по итогам аудита (`docs/AUDIT_v2.6.9.md`): качество, типизация,
+тесты, CI и мелкие фиксы. Без изменения публичных HTTP-эндпоинтов, формата CSV/XLSX и
+визуального UI.
+
+### Добавлено
+- **CI: прогон тестов на реальном PostgreSQL (P2.7).** Новый джоб `test-backend-postgres`
+  с сервисом `postgres:16-alpine` — проверяет прод-семантику (ilike/регистр, типы, каскады),
+  которой нет в SQLite. `conftest.py` берёт URL из `TEST_DATABASE_URL` (дефолт — in-memory
+  SQLite); добавлен `drop_all` перед `create_all` для изоляции тестов на PostgreSQL. Все 97
+  тестов проходят и на SQLite, и на PostgreSQL.
+- **Флаг `RUN_MIGRATIONS_ON_STARTUP` (P2.8).** Управляет запуском миграций Alembic в
+  `lifespan`. Дефолт `True` — прежнее поведение (одноконтейнерный деплой). `False` — миграции
+  применяются отдельным шагом (entrypoint/job), чтобы не запускать их в каждом воркере.
+  Добавлено в `config.py` и `.env.example`.
+- **Vitest: тесты фронтенда.** Добавлены `vitest` + `jsdom` в devDeps, конфиг
+  `vitest.config.ts` (плагин `sveltekit()` → резолв `$lib`/`$app` и компиляция `.svelte.ts`,
+  окружение `jsdom`), скрипты `test`/`test:watch`, шаг `Vitest` в CI-джобе `check-frontend`.
+  Первые тесты (17): чистые утилиты `format` (`plural`) и `date` (`fmtDate`, `isOverdue`,
+  `dueInfo` с фиктивным таймером) и рун-стор `filters` (`persist`, `toggleSort`,
+  `resetAdvanced`, `hasActiveFilters`). `package-lock.json` обновлён.
+- **Pyright: статическая проверка типов backend.** Добавлен `pyright` в dev-зависимости,
+  конфиг `[tool.pyright]` в `backend/pyproject.toml` (режим `standard`, проверяется `app/`)
+  и шаг `Pyright (backend)` в CI-джобе `lint`. `pyright app/` проходит чисто (0 ошибок).
+
+### Исправлено
+- **14 ошибок типизации backend, вскрытых pyright:**
+  - `csv_service.export_xlsx` — `Workbook.active` имеет тип `Worksheet | None`; добавлено
+    сужение типа (9 `reportOptionalMemberAccess`).
+  - `routers/users.py` — эндпоинты возвращали ORM-объект `User` под аннотацией
+    `UserResponse`/`list[UserResponse]`; теперь сериализуются явно через
+    `UserResponse.model_validate(...)` (контракт ответа не изменился).
+  - `routers/auth.py` и `services/auth_service.py` — `User.role` (тип `str`) приводится
+    к `RoleEnum` на границе Pydantic-моделей (`MeResponse`, `TokenResponse`).
+- **Устаревший `datetime.utcnow()`** заменён на helper `app/utils/time.py::utcnow()`
+  (`security.py`, `models/base.py`). Helper возвращает **наивный** UTC, идентичный прежнему
+  значению: колонки `created_at` имеют тип `TIMESTAMP WITHOUT TIME ZONE` (asyncpg отвергает
+  aware-datetime), а формат дат в API-ответах не меняется. Убраны DeprecationWarning.
+
+### Изменено
+- **Bulk-операции: агрегированный результат вместо тост-спама (P3.13).** Массовая смена
+  состояния и удаление теперь показывают **один** тост с точным счётчиком
+  («Обновлено/Удалено: N», при ошибках — «N из M, ошибок: K») вместо N отдельных тостов и
+  вводящего в заблуждение «Обновлено: N» при частичном сбое. В `items.svelte.ts` добавлены
+  `bulkChangeState`/`bulkRemove` (последовательные, с подавлением индивидуальных тостов через
+  параметр `silent` у `update`/`remove`); разметка `BulkActions.svelte` не менялась. Покрыто
+  тестами (успех и частичный сбой). Серверного bulk-эндпоинта нет — bulk остаётся клиентским.
+- **API-клиент: дедупликация параллельных refresh (P2.9).** Несколько одновременных
+  запросов с 401 теперь ждут один общий `POST /auth/refresh` (кеш in-flight промиса в
+  `client.ts`), а не запускают несколько параллельно. Это исключает ложный разлогин при
+  ротации refresh-токена. Покрыто тестом (2 параллельных 401 → ровно 1 refresh).
+- **Фильтрация/сортировка задач: клиент — источник истины (P2.6).** Логика фильтрации,
+  поиска и сортировки вынесена из стора `items.svelte.ts` в чистый модуль
+  `lib/utils/itemFilter.ts` (`filterAndSortItems`, `compareItems`) — без изменения
+  поведения/UX. Решено: UI фильтрует загруженный список в памяти (источник истины —
+  клиент), а бэкенд-фильтры `item_repository.list_with_filters` остаются для API/экспорта
+  (зафиксировано комментарием в сторе). Устранено дублирование внутри фронтенда и риск
+  расхождения правил. Новый модуль покрыт тестами (15 кейсов: все фильтры, комбинации,
+  сортировки, неизменяемость входа).
+- **Оптимистичное обновление задачи: строгий маппинг полей (P3.10).** В `items.update`
+  при оптимистичном применении исключается `executor_ids` (поле payload, а не `Item`) —
+  чтобы не класть лишний ключ в объект задачи.
+- **Чистка отложенных импортов (P3.11).** Убран избыточный инлайн-импорт `Executor` в
+  `item_repository.update_executors` (уже импортирован на уровне модуля); импорты
+  `async_session`/`UserRepository`/`AuthService`/`sqlalchemy.text` в `main.py` вынесены на
+  уровень модуля. TYPE_CHECKING-импорты в моделях (разрыв циклов) сохранены.
+- **Документация (P3.12).** `README.md` — комментарий про `data/` обновлён (в v2 БД — в
+  Docker volume `postgres-data`, а не SQLite). `ARCHITECTURE.md`/`DEPLOY.md` уже без SQLite.
+- **Структурированное логирование вместо `print()`.** Добавлен `app/logging_config.py`
+  (логгер `protocol`, формат «время уровень [имя] сообщение», вывод в stdout). Все
+  startup-сообщения в `main.py` (`[alembic]`, `[security]`, `[auth]`) переведены на
+  `logger.info/warning/error/exception` с корректными уровнями; ошибка seed-админа теперь
+  логируется с трейсбеком (`logger.exception`). `configure_logging()` вызывается в `lifespan`.
+- **Ruff: единый источник правды конфигурации.** Правила линта (`select = E,F,W,I,N`,
+  `ignore = E501`, per-file-ignores для `tests/*`) перенесены из корневого `ruff.toml`
+  в `backend/pyproject.toml` (`[tool.ruff.lint]`). CI запускает `ruff check app/` из
+  каталога `backend/`, где Ruff видит только `pyproject.toml` — поэтому корневой `ruff.toml`
+  фактически игнорировался и правила `I`/`N`/`W` в CI **не применялись**. Корневой
+  `ruff.toml` удалён.
+- **Исправлены 2 ранее скрытых нарушения `I001`** (порядок импортов), вскрытых корректным
+  конфигом: `app/main.py` и `app/services/executor_service.py`. Только переупорядочивание
+  импортов, поведение не изменилось. `ruff check app/` проходит чисто.
+
+---
+
 ## [2.6.9] — 2026-06-05
 
 ### Добавлено

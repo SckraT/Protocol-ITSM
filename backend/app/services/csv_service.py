@@ -159,6 +159,9 @@ class CsvService:
 
         wb = Workbook()
         ws = wb.active
+        # У нового Workbook активный лист есть всегда; проверка — для сужения типа (Worksheet | None).
+        if ws is None:
+            raise RuntimeError("Не удалось создать лист Excel")
         ws.title = "Протокол"
 
         # ── Стили ──────────────────────────────────────────────────────────────

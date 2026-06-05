@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     # Режим отладки
     DEBUG: bool = False
 
+    # Запускать миграции Alembic при старте приложения (в lifespan).
+    # True (дефолт) — удобно для одноконтейнерного деплоя (текущее поведение).
+    # False — если миграции применяются отдельным шагом (entrypoint/job/CI),
+    # чтобы не запускать их в каждом web-воркере и не связывать старт с миграцией.
+    RUN_MIGRATIONS_ON_STARTUP: bool = True
+
     # Разрешённые источники для CORS (через запятую)
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:8000"
 

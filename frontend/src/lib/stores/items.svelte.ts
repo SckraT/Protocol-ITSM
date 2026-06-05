@@ -8,7 +8,7 @@ import {
 } from '$lib/api/items';
 import type { Item, ItemCreatePayload, ItemState, ItemUpdatePayload } from '$lib/api/types';
 import { isOverdue } from '$lib/utils/date';
-import { PRIORITY_SORT_ORDER, STATE_ORDER } from '$lib/utils/constants';
+import { filterAndSortItems } from '$lib/utils/itemFilter';
 import { filtersStore } from './filters.svelte';
 import { refsStore } from './refs.svelte';
 import { toastStore } from './toast.svelte';
@@ -30,81 +30,28 @@ class ItemsStore {
     return c;
   });
 
-  /** Отфильтрованный и отсортированный список задач. */
+  /**
+   * Отфильтрованный и отсортированный список задач.
+   * Клиент — источник истины для отображаемого списка: грузим все задачи один раз
+   * (load → page_size:1000) и фильтруем/сортируем в памяти. Бэкенд-фильтры
+   * (item_repository.list_with_filters) оставлены для API/экспорта, в UI не используются.
+   * Сама логика — в чистом utils/itemFilter.ts (тестируется изолированно).
+   */
   filtered = $derived.by(() => {
-    let result = this.all;
     const f = filtersStore;
-
-    // Фильтр по состоянию (вкладки дашборда)
-    if (f.currentFilter) {
-      result = result.filter((i) => i.state === f.currentFilter);
-    }
-
-    // Поиск по теме, тикету, исполнителям
-    if (f.searchQuery) {
-      const q = f.searchQuery.toLowerCase();
-      result = result.filter(
-        (i) =>
-          i.topic.toLowerCase().includes(q) ||
-          (i.ticket ?? '').toLowerCase().includes(q) ||
-          i.executors.some((e) => e.name.toLowerCase().includes(q))
-      );
-    }
-
-    // Фильтр по отделу: резолвим department_id → имя через справочник,
-    // т.к. ItemResponse содержит только department_name исполнителя.
-    if (f.filterDept) {
-      const deptName = refsStore.departmentName(Number(f.filterDept));
-      if (deptName) {
-        result = result.filter((i) => i.executors.some((e) => e.department_name === deptName));
-      }
-    }
-
-    // Фильтр по исполнителю
-    if (f.filterExec) {
-      const execId = Number(f.filterExec);
-      result = result.filter((i) => i.executors.some((e) => e.id === execId));
-    }
-
-    // Фильтр по приоритету
-    if (f.filterPriority) {
-      result = result.filter((i) => (i.priority ?? '') === f.filterPriority);
-    }
-
-    // Фильтр по совещанию
-    if (f.filterMeeting) {
-      const mid = Number(f.filterMeeting);
-      result = result.filter((i) => i.meeting_id === mid);
-    }
-
-    // Сортировка
-    if (f.sortCol) {
-      result = [...result].sort((a, b) => this.compare(a, b, f.sortCol!, f.sortDir));
-    }
-
-    return result;
+    // Отдел: резолвим id → имя через справочник (ItemResponse хранит только имя отдела).
+    const departmentName = f.filterDept ? refsStore.departmentName(Number(f.filterDept)) : null;
+    return filterAndSortItems(this.all, {
+      state: f.currentFilter,
+      search: f.searchQuery,
+      departmentName,
+      executorId: f.filterExec ? Number(f.filterExec) : null,
+      priority: f.filterPriority,
+      meetingId: f.filterMeeting ? Number(f.filterMeeting) : null,
+      sortCol: f.sortCol,
+      sortDir: f.sortDir
+    });
   });
-
-  private compare(a: Item, b: Item, col: string, dir: 'asc' | 'desc'): number {
-    let cmp = 0;
-    switch (col) {
-      case 'topic':
-        cmp = a.topic.localeCompare(b.topic, 'ru');
-        break;
-      case 'priority':
-        cmp = PRIORITY_SORT_ORDER[a.priority ?? ''] - PRIORITY_SORT_ORDER[b.priority ?? ''];
-        break;
-      case 'state':
-        cmp = STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state);
-        break;
-      case 'due_date':
-        cmp = (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999');
-        break;
-      default:
-        cmp = a.id - b.id;
-    }
-    return dir === 'asc' ? cmp : -cmp;
-  }
 
   /** Загрузить все задачи с бэкенда. */
   async load(): Promise<void> {
@@ -139,11 +86,16 @@ class ItemsStore {
     }
   }
 
-  /** Обновить задачу с оптимистичным UI и откатом при ошибке. */
-  async update(id: number, data: ItemUpdatePayload): Promise<boolean> {
+  /** Обновить задачу с оптимистичным UI и откатом при ошибке.
+   * silent — не показывать тост ошибки (для bulk, где тост агрегируется вызывающим). */
+  async update(id: number, data: ItemUpdatePayload, silent = false): Promise<boolean> {
     const snapshot = this.all;
-    // Оптимистичное обновление
-    this.all = this.all.map((i) => (i.id === id ? { ...i, ...data } : i));
+    // Оптимистичное обновление: применяем только поля Item.
+    // executor_ids — поле payload, а не Item (в Item исполнители лежат в executors),
+    // исключаем, чтобы не класть лишний ключ в объект задачи.
+    const { executor_ids, ...itemFields } = data;
+    void executor_ids;
+    this.all = this.all.map((i) => (i.id === id ? { ...i, ...itemFields } : i));
     try {
       const updated = await apiUpdate(id, data);
       // Синхронизация с ответом сервера (полные связи)
@@ -151,7 +103,7 @@ class ItemsStore {
       return true;
     } catch (e) {
       this.all = snapshot; // откат
-      toastStore.error(e instanceof Error ? e.message : 'Ошибка обновления');
+      if (!silent) toastStore.error(e instanceof Error ? e.message : 'Ошибка обновления');
       return false;
     }
   }
@@ -161,19 +113,42 @@ class ItemsStore {
     return this.update(id, { state });
   }
 
-  /** Удалить задачу. */
-  async remove(id: number): Promise<boolean> {
+  /** Удалить задачу.
+   * silent — не показывать тосты (для bulk, где результат агрегируется вызывающим). */
+  async remove(id: number, silent = false): Promise<boolean> {
     const snapshot = this.all;
     this.all = this.all.filter((i) => i.id !== id);
     try {
       await apiDelete(id);
-      toastStore.success('Задача удалена');
+      if (!silent) toastStore.success('Задача удалена');
       return true;
     } catch (e) {
       this.all = snapshot;
-      toastStore.error(e instanceof Error ? e.message : 'Ошибка удаления');
+      if (!silent) toastStore.error(e instanceof Error ? e.message : 'Ошибка удаления');
       return false;
     }
+  }
+
+  /**
+   * Массовая смена состояния. Индивидуальные тосты подавлены — возвращает счётчики,
+   * чтобы вызывающий показал один агрегированный тост.
+   * Последовательно (не Promise.all): параллель ломала бы оптимистичные snapshot/откат.
+   */
+  async bulkChangeState(ids: number[], state: ItemState): Promise<{ ok: number; failed: number }> {
+    let ok = 0;
+    for (const id of ids) {
+      if (await this.update(id, { state }, true)) ok++;
+    }
+    return { ok, failed: ids.length - ok };
+  }
+
+  /** Массовое удаление. Тосты подавлены — возвращает счётчики (см. bulkChangeState). */
+  async bulkRemove(ids: number[]): Promise<{ ok: number; failed: number }> {
+    let ok = 0;
+    for (const id of ids) {
+      if (await this.remove(id, true)) ok++;
+    }
+    return { ok, failed: ids.length - ok };
   }
 
   /** Обновить одну задачу в сторе (после изменений статусов/исполнителей). */
