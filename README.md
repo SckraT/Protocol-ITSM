@@ -131,14 +131,15 @@ Protocol/
 │
 ├── scripts/                   # seed-данные / утилиты
 ├── deploy/                    # nginx.conf (reverse-proxy для прода)
-├── docs/                      # ARCHITECTURE.md, AUDIT_v2.6.9.md
+├── docs/                      # ARCHITECTURE.md, AUDIT_v2.7.0.md
 ├── .github/workflows/ci.yml   # CI: ruff, pyright, pytest (SQLite+PG), svelte-check, vitest, docker build
 ├── docker-compose.yml         # Базовый стек (backend + postgres, порт 8000)
 ├── docker-compose.dev.yml     # Dev: backend hot-reload + frontend HMR (5173)
 ├── docker-compose.prod.yml    # Prod: порт 127.0.0.1 (за Nginx), .env обязателен
+├── docker-compose.local-prod.yml  # Локальный прод: + nginx (HTTPS через mkcert)
 ├── Dockerfile · Dockerfile.dev
 ├── .pre-commit-config.yaml · .env.example
-├── CHANGELOG.md · BACKLOG.md · DEPLOY.md · CLAUDE.md · LICENSE
+├── CHANGELOG.md · DEPLOY.md · CLAUDE.md · LICENSE
 └── README.md
 ```
 
@@ -296,8 +297,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 - [CHANGELOG.md](CHANGELOG.md) — история версий (Keep a Changelog)
 - [DEPLOY.md](DEPLOY.md) — развёртывание в продакшн
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — архитектурные решения
-- [docs/AUDIT_v2.6.9.md](docs/AUDIT_v2.6.9.md) — аудит кодовой базы и план рефакторинга
-- [BACKLOG.md](BACKLOG.md) — дорожная карта
+- [docs/AUDIT_v2.7.0.md](docs/AUDIT_v2.7.0.md) — аудит кодовой базы и план улучшений
 - [CLAUDE.md](CLAUDE.md) — соглашения по версионированию и git-флоу
 
 ---

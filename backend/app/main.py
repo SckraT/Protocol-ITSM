@@ -1,5 +1,5 @@
 """
-Протокол совещания v2.0 — точка входа FastAPI-приложения.
+Протокол совещаний — точка входа FastAPI-приложения.
 
 Структура:
   - /api/auth          — аутентификация (login, refresh, me)
@@ -142,8 +142,8 @@ async def _seed_first_admin() -> None:
 
 # Инициализация FastAPI
 app = FastAPI(
-    title="Протокол совещания v2.0",
-    description="API для управления задачами протокола совещания",
+    title="Протокол совещаний",
+    description="API для управления задачами протокола совещаний",
     version="2.7.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
