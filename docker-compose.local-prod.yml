@@ -1,0 +1,75 @@
+# Продакшн-стек для локального ПК (Windows/Mac/Linux без хостового Nginx).
+# Отличие от docker-compose.yml: порт 8000 НЕ публикуется наружу — только внутри
+# Docker-сети. Весь внешний трафик идёт через Nginx-контейнер на порту 80.
+#
+# Запуск:
+#   docker compose -f docker-compose.local-prod.yml up -d --build
+#   # Приложение: http://localhost
+#   # Swagger UI: http://localhost/api/docs
+#
+# Остановка (данные в volume сохраняются):
+#   docker compose -f docker-compose.local-prod.yml down
+#
+# Просмотр логов:
+#   docker compose -f docker-compose.local-prod.yml logs -f
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: protocol
+      POSTGRES_USER: protocol
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U protocol"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  protocol:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Порт НЕ публикуется на хост — доступен только внутри Docker-сети (через nginx)
+    expose:
+      - "8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://protocol:${POSTGRES_PASSWORD}@postgres:5432/protocol
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD", "python", "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx.local.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      protocol:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres-data:
