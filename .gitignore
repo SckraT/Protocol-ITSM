@@ -39,3 +39,6 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+
+# Локальные TLS-сертификаты (mkcert; генерируются на каждой машине отдельно)
+deploy/certs/

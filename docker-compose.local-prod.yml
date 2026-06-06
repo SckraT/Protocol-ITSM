@@ -1,11 +1,16 @@
-# Продакшн-стек для локального ПК (Windows/Mac/Linux без хостового Nginx).
-# Отличие от docker-compose.yml: порт 8000 НЕ публикуется наружу — только внутри
-# Docker-сети. Весь внешний трафик идёт через Nginx-контейнер на порту 80.
+# Продакшн-стек для локального ПК с HTTPS через mkcert.
+# Порт 8000 НЕ публикуется наружу — только внутри Docker-сети.
+# Весь трафик: браузер → Nginx (443/80) → protocol:8000 (внутри сети).
+#
+# Предварительно (один раз):
+#   winget install FiloSottile.mkcert
+#   mkcert -install
+#   mkcert -cert-file deploy/certs/localhost.pem -key-file deploy/certs/localhost-key.pem localhost 127.0.0.1 ::1
 #
 # Запуск:
 #   docker compose -f docker-compose.local-prod.yml up -d --build
-#   # Приложение: http://localhost
-#   # Swagger UI: http://localhost/api/docs
+#   # Приложение: https://localhost
+#   # Swagger UI: https://localhost/api/docs
 #
 # Остановка (данные в volume сохраняются):
 #   docker compose -f docker-compose.local-prod.yml down
@@ -59,8 +64,11 @@ services:
     image: nginx:1.27-alpine
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./deploy/nginx.local.conf:/etc/nginx/conf.d/default.conf:ro
+      # Сертификат mkcert (не коммитится в git, генерируется локально — см. выше)
+      - ./deploy/certs:/etc/nginx/certs:ro
     depends_on:
       protocol:
         condition: service_healthy
