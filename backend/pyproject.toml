@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "protocol-backend"
-version = "2.7.0"
-description = "Протокол совещания — бэкенд v2.0"
+version = "3.0.0"
+description = "Protocol-ITSM — бэкенд (ITSM-платформа на базе Протокола совещаний)"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",
@@ -21,6 +21,7 @@ dependencies = [
     "python-jose[cryptography]>=3.3.0",
     "bcrypt>=4.0.0",
     "redis>=5.0.0",
+    "prefect>=3.0,<4.0",
 ]
 
 [project.optional-dependencies]

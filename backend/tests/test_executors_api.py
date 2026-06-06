@@ -117,8 +117,8 @@ async def test_delete_executor_not_found(client):
 @pytest.mark.asyncio
 async def test_user_options_editor(editor_client, db_session):
     """GET /executors/user-options возвращает список УЗ для editor."""
-    from tests.conftest import _seed_user
     from app.models.user import RoleEnum
+    from tests.conftest import _seed_user
 
     await _seed_user(db_session, "user_a", RoleEnum.viewer)
     await _seed_user(db_session, "user_b", RoleEnum.editor)

@@ -2,7 +2,8 @@
 # Отличие от docker-compose.yml: порт привязан к 127.0.0.1 (наружу только через Nginx).
 #
 # Запуск (использовать ИМЕННО этот файл, не поверх базового):
-#   cp .env.example .env   # и заполнить SECRET_KEY, FIRST_ADMIN_*, POSTGRES_PASSWORD
+#   cp .env.example .env   # и заполнить SECRET_KEY, FIRST_ADMIN_*, POSTGRES_PASSWORD,
+#                          # PREFECT_SERVER_API_AUTH_STRING
 #   docker compose -f docker-compose.prod.yml up -d --build
 #
 # Обновление:
@@ -35,6 +36,70 @@ services:
       timeout: 3s
       retries: 5
 
+  # ── Prefect (см. docker-compose.yml — отличий в prod нет, кроме .env) ──
+  prefect-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: prefect
+      POSTGRES_USER: prefect
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - prefect-db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prefect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  prefect-server:
+    image: prefecthq/prefect:3-python3.12
+    command: >
+      sh -c "prefect server database upgrade &&
+             prefect server start --host 0.0.0.0 --port 4200"
+    # 127.0.0.1 — наружу только через Nginx (см. deploy/nginx.conf).
+    ports:
+      - "127.0.0.1:4200:4200"
+    environment:
+      - PREFECT_HOME=/opt/prefect
+      - PREFECT_SERVER_API_AUTH_STRING=${PREFECT_SERVER_API_AUTH_STRING}
+      - PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:${POSTGRES_PASSWORD}@prefect-db:5432/prefect
+    volumes:
+      - prefect-home:/opt/prefect
+    restart: unless-stopped
+    depends_on:
+      prefect-db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; r=urllib.request.urlopen('http://localhost:4200/api/health'); sys.exit(0 if r.status==200 else 1)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  prefect-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["prefect", "worker", "start", "--pool", "default"]
+    environment:
+      - PREFECT_API_URL=http://prefect-server:4200/api
+      - PREFECT_API_AUTH_STRING=${PREFECT_SERVER_API_AUTH_STRING}
+      - PREFECT_HOME=/opt/prefect
+      - DATABASE_URL=postgresql+asyncpg://protocol:${POSTGRES_PASSWORD}@postgres:5432/protocol
+    restart: unless-stopped
+    depends_on:
+      prefect-server:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
   protocol:
     build:
       context: .
@@ -45,6 +110,8 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://protocol:${POSTGRES_PASSWORD}@postgres:5432/protocol
       - REDIS_URL=redis://redis:6379/0
+      - PREFECT_API_URL=http://prefect-server:4200/api
+      - PREFECT_API_AUTH_STRING=${PREFECT_SERVER_API_AUTH_STRING}
     # Секреты — в .env (см. .env.example). В проде файл обязателен.
     env_file:
       - .env
@@ -52,6 +119,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      prefect-server:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -70,3 +139,5 @@ services:
 
 volumes:
   postgres-data:
+  prefect-db-data:
+  prefect-home:

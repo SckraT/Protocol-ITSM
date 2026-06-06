@@ -90,6 +90,62 @@
 
 ---
 
+## [3.0.0] — 2026-06-06
+
+**Трансформация в ITSM-платформу.** Репозиторий продолжается как `SckraT/Protocol-ITSM`
+(форк с полной историей от `SckraT/Meeting-Minutes` v2.7.0). Цель — практики ITIL 4:
+управление инцидентами, проблемами и изменениями, контроль SLA, автоматическая эскалация.
+
+Этап 1 (инфраструктура Prefect) — оркестратор долгоживущих flow: SLA-таймеры,
+согласование Change Requests, компенсирующие операции. Модули Incident/Problem/Change
+планируются в Этапах 2–4 (см. `docs/ARCHITECTURE.md`).
+
+### Добавлено
+- **Prefect 3** как оркестратор flow. Три отдельных контейнера:
+  - `prefect-db` — PostgreSQL 16 (изолированная БД для состояния Prefect)
+  - `prefect-server` — Prefect API + UI на `:4200` (образ `prefecthq/prefect:3-python3.12`)
+  - `prefect-worker` — воркер в work pool `default` (тот же backend-образ, другой CMD)
+- **Аутентификация Prefect API** — `PREFECT_SERVER_API_AUTH_STRING` (basic). В dev
+  пусто (открытый UI на `:4200`), в проде обязателен в `.env` (одинаковый на сервере
+  и в клиентах: `prefect-worker`, `protocol`).
+- **Пакет `backend/app/workflows/`** — контейнер для Flow/Task:
+  - `client.py` — `ping_prefect()`, `trigger_flow_run()` (fire-and-forget через
+    `run_deployment`), `get_flow_run_state()` (для `GET /api/changes/{id}/workflow-status`).
+  - `hello_flow.py` — smoke-тест flow: `@flow(name="hello-flow")` + `@task(retries=3,
+    retry_delay_seconds=[1, 5, 10])` (НФТ: retries на любых I/O-задачах).
+- **Эндпоинт `POST /api/admin/test-flow`** (под `require_admin`) — триггер hello-flow.
+  Используется для приёмки Этапа 1 и как образец вызова Prefect из FastAPI.
+- **Health-check** Prefect-сервиса в `docker-compose.yml`/`docker-compose.dev.yml` —
+  пинг `/api/health` через `urllib` (в `prefecthq/prefect:3` есть python и нет curl).
+- **`/health/detailed`** (уже было в v2.7.0) — возвращает `alembic_version`. Используется
+  для проверки, что приложение поднялось на актуальной схеме.
+- **Тесты** `backend/tests/test_workflows.py` — проверка, что `hello_flow`/`greet_task`
+  вызываются как обычные async-функции (без поднятого Prefect-сервера) и что `retries ≥ 1`.
+
+### Изменено
+- **Версия 3.0.0** во всех 4 точках: `backend/app/main.py` (`FastAPI(version=...)` + строка
+  в `/health`), `backend/pyproject.toml`, `frontend/package.json`.
+- **`docker-compose.yml` / `docker-compose.dev.yml` / `docker-compose.prod.yml`** —
+  добавлены сервисы `prefect-db`, `prefect-server`, `prefect-worker`. Healthcheck-цепочка:
+  `prefect-db` → `prefect-server` → `prefect-worker` + `protocol`.
+- **`backend/app/config.py`** — секция Prefect: `PREFECT_API_URL`, `PREFECT_WORK_POOL`,
+  `PREFECT_API_AUTH_STRING`, `PREFECT_TRIGGER_TIMEOUT`.
+- **`.env.example`** — секция `# ── Prefect ──` с подсказками (shared secret между
+  сервером и клиентом, таймауты).
+- **`backend/app/main.py`** — `title="Protocol-ITSM"`, `description` обновлён, импорт
+  и подключение `workflows_router`.
+
+### Breaking
+- **Major bump 2.7.0 → 3.0.0.** Публичные HTTP-эндпоинты не изменились; изменения —
+  в инфраструктуре (новые docker-сервисы) и в зависимостях (`prefect>=3.0` в
+  `pyproject.toml`). При обновлении с v2.7.0: `docker compose down`, обновить `.env`
+  (добавить `PREFECT_*`), `docker compose up -d --build`. Старая БД (PostgreSQL
+  `protocol`) сохраняется; для Prefect создаётся отдельная БД `prefect`.
+- **Сервис `protocol`** теперь ожидает `prefect-server` в `depends_on` (healthy).
+  В dev-окружениях без Prefect UI healthcheck может занимать до 60с (`start_period`).
+
+---
+
 ## [2.7.0] — 2026-06-05
 
 Точечный рефакторинг по итогам аудита (`docs/AUDIT_v2.6.9.md`): качество, типизация,

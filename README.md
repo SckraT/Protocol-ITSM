@@ -1,10 +1,22 @@
-# Протокол совещаний (Meeting Minutes)
+# Protocol-ITSM (на базе Протокола совещаний)
 
-Самостоятельно размещаемое (self-hosted) веб-приложение для ведения протоколов совещаний
-и управления задачами — лёгкая альтернатива Excel и Google Sheets с ролевым доступом,
-историей статусов, справочниками и экспортом в Excel/CSV.
+Самостоятельно размещаемая (self-hosted) ITSM-платформа для практик ITIL 4: управление
+инцидентами с контролем SLA, проблемами и изменениями. Построена на базе «Протокола
+совещаний» — расширяет его модулями Incident / Problem / Change с оркестрацией
+долгоживущих процессов через Prefect.
 
-> **Версия:** 2.7.0 · **Статус:** ✅ в продакшне · **Лицензия:** внутренний проект (self-hosted)
+> **Версия:** 3.0.0 · **Статус:** 🚧 в активной разработке (Этап 1 из 4) · **Лицензия:** внутренний проект (self-hosted)
+
+### Roadmap (ITSM)
+
+| Этап | Содержание | Статус |
+| --- | --- | --- |
+| 1 | Инфраструктура Prefect (3 контейнера, hello-flow, smoke-тест) | ✅ в этом релизе |
+| 2 | Ядро SLA: миграции, эскалация, cron-flow, UI-таймер | запланировано |
+| 3 | Управление проблемами (Problem, KEDB, поиск) | запланировано |
+| 4 | Управление изменениями (Change, CAB-flow, rollback) | запланировано |
+
+Подробности в `docs/ARCHITECTURE.md`.
 
 ---
 
@@ -58,6 +70,7 @@
 - **PostgreSQL 16** (в тестах — in-memory SQLite через aiosqlite)
 - **Alembic** — версионирование схемы (миграции)
 - **Pydantic v2** — валидация на границах системы
+- **Prefect 3** — оркестратор flow (SLA-таймеры, эскалация, согласование Change)
 - Аутентификация: **python-jose** (JWT HS256) + **bcrypt**
 - Экспорт Excel: **openpyxl**
 
@@ -160,19 +173,22 @@ cp .env.example .env   # и задайте SECRET_KEY, POSTGRES_PASSWORD, FIRST_
 ```
 
 ### Вариант 1 — базовый стек (рекомендуется для локального прогона)
-Backend + PostgreSQL в одном `compose`; фронтенд уже встроен в образ.
+Backend + PostgreSQL + Redis + Prefect в одном `compose`; фронтенд уже встроен в образ.
 ```bash
 docker compose up -d --build
 # Приложение:   http://localhost:8000
 # Swagger UI:    http://localhost:8000/api/docs
+# Prefect UI:    http://localhost:4200       # оркестратор flow
 ```
 
 ### Вариант 2 — режим разработки (hot-reload)
-Backend с авто-перезагрузкой (8000) и фронтенд с HMR (5173) — раздельно.
+Backend с авто-перезагрузкой (8000) и фронтенд с HMR (5173) — раздельно. Prefect в
+dev-режиме — `prefect-server` + `prefect-worker` (без авторизации для удобства отладки).
 ```bash
 docker compose -f docker-compose.dev.yml up
 # Фронтенд (HMR): http://localhost:5173
 # API + Swagger:  http://localhost:8000/api/docs
+# Prefect UI:     http://localhost:4200
 ```
 
 ### Вариант 3 — продакшн (за Nginx)

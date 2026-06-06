@@ -1,17 +1,23 @@
-# Архитектура — Протокол совещаний v2.0
+# Архитектура — Protocol-ITSM v3.0.0
 
-Документ описывает устройство приложения после переписывания на современный стек.
+Документ описывает устройство приложения. Начиная с v3.0.0 репозиторий продолжается
+как `SckraT/Protocol-ITSM` (форк `SckraT/Meeting-Minutes` v2.7.0): к слоистой
+архитектуре добавлен пакет `app/workflows/` и три новых docker-сервиса для Prefect.
 
 ## Обзор
 
-Приложение состоит из двух независимых частей:
+Приложение состоит из трёх групп сервисов:
 
-- **`backend/`** — асинхронный API на FastAPI + SQLAlchemy 2.0 (asyncpg / psycopg2-binary).
-- **`frontend/`** — SPA на Svelte 5 + SvelteKit (adapter-static) + Tailwind CSS.
+- **`backend/` + `frontend/`** — без изменений от v2.0: FastAPI API + Svelte 5 SPA
+  (см. исторические разделы ниже).
+- **Prefect 3** — оркестратор flow (SLA-эскалация, согласование Change, rollback).
+  Три контейнера: `prefect-db` (PostgreSQL для состояния Prefect), `prefect-server`
+  (API + UI на `:4200`), `prefect-worker` (исполнитель flow в work pool `default`).
 
 В продакшене всё упаковывается в один Docker-образ: собранный фронтенд (`frontend/dist`)
-кладётся в `static/` и раздаётся самим FastAPI. В dev-режиме фронтенд и бэкенд
-работают раздельно (Vite на :5173, uvicorn на :8000).
+кладётся в `static/` и раздаётся самим FastAPI. Prefect-сервисы идут отдельными
+контейнерами. В dev-режиме бэкенд/фронтенд/Prefect поднимаются через
+`docker-compose.dev.yml` (hot-reload на бэкенде, UI Prefect на :4200).
 
 ## Backend: слоистая архитектура
 
@@ -111,4 +117,78 @@ routes/                 — страницы (SPA): +layout, +page (задачи
 | Backend     | Python 3.12, FastAPI, SQLAlchemy 2.0 (async), Alembic, Pydantic v2 |
 | БД          | PostgreSQL 16 (asyncpg), нормализованные M2M-связи                 |
 | Frontend    | Svelte 5, SvelteKit (adapter-static), Vite, Tailwind CSS, TypeScript |
-| DevOps      | Docker (multi-stage), docker-compose (prod + dev)                 |
+| Оркестрация | Prefect 3 (`app/workflows/` + 3 docker-сервиса: db, server, worker) |
+| DevOps      | Docker (multi-stage), docker-compose (prod + dev + local-prod)     |
+
+## Оркестрация (Prefect) — Этап 1
+
+### Зачем
+
+Некоторые бизнес-процессы нельзя выполнять синхронно в HTTP-запросе:
+
+- **SLA-эскалация** — по расписанию каждую минуту: проверить инциденты с истекающим
+  дедлайном, повысить приоритет, перевести на следующий уровень поддержки.
+- **Согласование Change (CAB)** — ждать до 72ч, пока approver одобрит/отклонит.
+  Нельзя держать HTTP-сокет открытым три дня.
+- **Компенсирующие операции (rollback)** — при падении Change запустить Task
+  «откатить изменения», создать incident.
+
+Prefect решает это: гарантированно выполняет async-задачи, ретраит при сбоях (до 3
+попыток по НФТ), показывает в UI (`:4200`) историю, логи, состояние.
+
+### Поток данных
+
+```
+HTTP-запрос → FastAPI router → service → trigger_flow_run()
+    │                                            │
+    │                                            ▼
+    │                              Prefect API (prefect-server)
+    │                                            │
+    │            ┌───────────────────────────────┘
+    │            ▼
+    │     Prefect DB (prefect-db) — состояние flow run, deployments
+    │
+    │   ← 202 Accepted + flow_run_id (неблокирующий ответ)
+    │
+    └── Асинхронно: worker забирает задачу, выполняет @task'и,
+        обновляет состояние в prefect-db. UI на :4200 показывает прогресс.
+```
+
+### Где живёт код
+
+- `app/workflows/` — Flow и Task. Каждый flow — `@flow(name=..., log_prints=True)`,
+  задачи — `@task(retries=3, retry_delay_seconds=[1, 5, 10])`.
+- `app/workflows/client.py` — клиентские обёртки:
+  - `ping_prefect()` — проверка доступности API.
+  - `trigger_flow_run(deployment_name, parameters, timeout)` —
+    fire-and-forget через `prefect.deployments.run_deployment`. Возвращает
+    `flow_run_id` или `None` (при таймауте/ошибке).
+  - `get_flow_run_state(flow_run_id)` — для `GET /api/changes/{id}/workflow-status`.
+- `app/routers/workflows.py` — `POST /api/admin/test-flow` (require_admin) — smoke-тест.
+
+### Конвенция вызова из services/
+
+Любой `service/`, инициирующий долгий процесс, **возвращает `202 Accepted`** +
+`{"flow_run_id": "..."}`. Это требование масштабируется: SLA-эскалация в Этапе 2,
+согласование Change в Этапе 4. Пример шаблона:
+
+```python
+flow_run_id = await trigger_flow_run(
+    "sla-flow/check-sla-escalation",
+    parameters={"threshold_minutes": 15},
+)
+# flow_run_id может быть None — тогда логируем и продолжаем без Prefect
+```
+
+### Аутентификация Prefect
+
+`PREFECT_SERVER_API_AUTH_STRING` (basic auth). Должен быть **одинаковый** на
+`prefect-server` и на всех клиентах (`prefect-worker`, `protocol`). В dev — пусто.
+В проде — в `.env` (см. `.env.example`).
+
+### Smoke-тест Этапа 1
+
+`POST /api/admin/test-flow` (admin token) → пингует Prefect API → если есть
+deployment `hello-flow/hello-flow`, триггерит его; иначе вызывает `hello_flow()`
+напрямую. Возвращает `202 + flow_run_id` или `result` (при прямом вызове). На
+:4200 (UI) виден flow run с именем `hello-flow`.

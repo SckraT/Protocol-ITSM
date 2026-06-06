@@ -1,5 +1,5 @@
 """
-Протокол совещаний — точка входа FastAPI-приложения.
+Protocol-ITSM — точка входа FastAPI-приложения.
 
 Структура:
   - /api/auth          — аутентификация (login, refresh, me)
@@ -12,7 +12,9 @@
   - /api/export/csv    — экспорт CSV
   - /api/export/xlsx   — экспорт Excel
   - /api/import/csv    — импорт CSV
+  - /api/admin/test-flow — smoke-тест Prefect (только Admin)
   - /health            — health check
+  - /health/detailed   — расширенный health check (БД + alembic)
   - /api/docs          — Swagger UI
 """
 import subprocess
@@ -42,6 +44,7 @@ from app.routers.items import router as items_router
 from app.routers.meetings import router as meetings_router
 from app.routers.statuses import router as statuses_router
 from app.routers.users import router as users_router
+from app.routers.workflows import router as workflows_router
 from app.services.auth_service import AuthService
 
 settings = get_settings()
@@ -144,9 +147,9 @@ async def _seed_first_admin() -> None:
 
 # Инициализация FastAPI
 app = FastAPI(
-    title="Протокол совещаний",
-    description="API для управления задачами протокола совещаний",
-    version="2.7.0",
+    title="Protocol-ITSM",
+    description="API ITSM-платформы (Инциденты, Проблемы, Изменения) на базе Протокола совещаний",
+    version="3.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
@@ -181,12 +184,14 @@ app.include_router(meetings_router, prefix="/api", dependencies=_auth)
 app.include_router(statuses_router, prefix="/api", dependencies=_auth)
 app.include_router(export_router, prefix="/api", dependencies=_auth)
 app.include_router(import_router, prefix="/api", dependencies=_auth)
+# /admin/* — собственная авторизация (require_admin на каждом эндпоинте роутера)
+app.include_router(workflows_router, prefix="/api")
 
 
 @app.get("/health", tags=["Система"], summary="Health check")
 async def health_check():
     """Проверка работоспособности сервиса."""
-    return {"status": "ok", "version": "2.7.0"}
+    return {"status": "ok", "version": "3.0.0"}
 
 
 @app.get("/health/detailed", tags=["Система"], summary="Расширенный health check")

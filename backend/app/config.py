@@ -30,6 +30,19 @@ class Settings(BaseSettings):
     # В проде: redis://redis:6379/0 (см. docker-compose).
     REDIS_URL: str = ""
 
+    # ── Prefect (оркестрация flow: SLA-эскалация, согласование Change) ──────
+    # URL Prefect API. Внутри docker-compose — http://prefect-server:4200/api.
+    # В локальной разработке (без docker) — http://localhost:4200/api.
+    PREFECT_API_URL: str = "http://prefect-server:4200/api"
+    # Work pool, в котором зарегистрирован worker (см. docker-compose: prefect-worker).
+    PREFECT_WORK_POOL: str = "default"
+    # Auth string для Prefect API (basic). Должен совпадать с PREFECT_SERVER_API_AUTH_STRING
+    # на сервере. Пусто — без авторизации (dev). В проде ОБЯЗАТЕЛЬНО задать в .env.
+    PREFECT_API_AUTH_STRING: str = ""
+    # Таймаут (сек) на триггер deployment'а из services/. Превышение → возврат None,
+    # сервис логирует предупреждение и продолжает работу без Prefect.
+    PREFECT_TRIGGER_TIMEOUT: int = 10
+
     # JWT-аутентификация
     SECRET_KEY: str = "change-me-in-production-use-strong-random-key"
     JWT_ALGORITHM: str = "HS256"
