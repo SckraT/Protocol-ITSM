@@ -231,8 +231,8 @@ async SQLAlchemy 2.0 + asyncpg, Pydantic v2, Alembic; frontend на Svelte 5 Run
 
 | ID | Приоритет | Находка | План |
 |----|-----------|---------|------|
-| **C1** | 🟡 | **Мёртвые остатки SQLite:** `data/protocol.db` (+`-wal`/`-shm`) и `scripts/seed.py` (`sqlite3`, `DB_PATH` — заменён `seed_demo.py`). | Удалить `data/` и `scripts/seed.py`. |
-| **C2** | 🟡 | **Скилл `project-map` устарел** (v2.2.0, «SQLite в volume», `DB_PATH`). | Обновить под PostgreSQL/v2.7.0, новые сущности (meeting, audit_log), nginx-стек. |
+| **C1** | 🟡 ✅ | **Мёртвые остатки SQLite:** `data/protocol.db` (+`-wal`/`-shm`) и `scripts/seed.py` (`sqlite3`, `DB_PATH`). **СДЕЛАНО (v2.7.0):** `data/` и `scripts/seed.py` удалены (демо-данные — через `seed_demo.py` по REST API). |
+| **C2** | 🟡 ✅ | **Скилл `project-map` устарел** (v2.2.0, «SQLite в volume», `DB_PATH`). **СДЕЛАНО (v2.7.0):** переписан под PostgreSQL/Redis/nginx-стек, актуальные модули (audit_log, middleware, redis_client, logging_config, utils), 7 миграций, новый путь репозитория, compose-файлы. |
 | **C3** | 🟢 | ✅ **Сделано в v2.7.0:** рассинхрон версии в `main.py` (title/docstring «v2.0») устранён — версия убрана из title, осталась только в `FastAPI(version=)`/`/health` (их ведёт `bump.sh`). | — |
 | **C4** | 🟢 | ✅ **Сделано в v2.7.0:** `BACKLOG.md` (историческая карта «переписывания v2.0») удалён. | — |
 

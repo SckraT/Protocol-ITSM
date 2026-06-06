@@ -48,6 +48,15 @@
   `docs/AUDIT_v2.7.0.md`. README обновлён.
 - **Удалён `BACKLOG.md`** — историческая дорожная карта «переписывания v2.0» (все этапы
   выполнены); ссылки из README убраны.
+- **Скилл `project-map` переписан** (аудит II, C2): был устаревший (v2.2.0, «SQLite в
+  volume», `DB_PATH`). Теперь отражает PostgreSQL/Redis/nginx-стек, актуальные модули
+  (audit_log, middleware/rate_limit, redis_client, logging_config, utils), 7 миграций,
+  compose-файлы и новый путь репозитория.
+
+### Удалено (аудит II, C1)
+- **Мёртвые остатки SQLite:** каталог `data/` (`protocol.db` + `-wal`/`-shm`) и
+  `scripts/seed.py` (использовал `sqlite3`/`DB_PATH`). Демо-данные генерирует
+  `scripts/seed_demo.py` через REST API.
 
 ### Добавлено (локальный продакшн)
 - **`docker-compose.local-prod.yml`** — продакшн-стек для локального ПК: postgres +
