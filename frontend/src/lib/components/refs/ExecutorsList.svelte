@@ -71,13 +71,13 @@
 
   <!-- Форма добавления -->
   <form
-    class="mb-3 flex gap-2"
+    class="mb-3 flex flex-wrap gap-2"
     onsubmit={(e) => {
       e.preventDefault();
       add();
     }}
   >
-    <input bind:value={newName} placeholder="Имя исполнителя…" class="{inputClass} flex-1" />
+    <input bind:value={newName} placeholder="Имя исполнителя…" class="{inputClass} min-w-0 flex-1" />
     <select bind:value={newDept} class={inputClass} aria-label="Отдел">
       <option value="">Без отдела</option>
       {#each refsStore.departments as dept (dept.id)}
