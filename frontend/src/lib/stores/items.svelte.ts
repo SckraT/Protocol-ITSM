@@ -16,6 +16,8 @@ import { toastStore } from './toast.svelte';
 class ItemsStore {
   all = $state<Item[]>([]);
   loading = $state(false);
+  /** Признак завершённой первой загрузки — отличает «ещё грузим» от «задачи нет». */
+  loaded = $state(false);
   error = $state<string | null>(null);
 
   /** Количество просроченных задач — для счётчика в заголовке вкладки. */
@@ -65,6 +67,7 @@ class ItemsStore {
       toastStore.error(this.error);
     } finally {
       this.loading = false;
+      this.loaded = true;
     }
   }
 

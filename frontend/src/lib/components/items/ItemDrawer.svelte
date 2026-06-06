@@ -6,6 +6,7 @@
   import { addStatus, deleteStatus, fetchStatuses } from '$lib/api/statuses';
   import Drawer from '$lib/components/ui/Drawer.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import Loader from '$lib/components/ui/Loader.svelte';
   import ItemForm from './ItemForm.svelte';
   import Timeline from './Timeline.svelte';
   import { itemsStore } from '$lib/stores/items.svelte';
@@ -136,24 +137,36 @@
     </div>
   {/if}
 
-  {#key itemId}
-    <ItemForm {item} onSave={handleSave} bind:saving />
-  {/key}
-
-  {#if isEdit}
-    <hr class="my-5 border-[var(--border)]" />
-    <Timeline {statuses} onAdd={handleAddStatus} onDelete={handleDeleteStatus} />
-  {/if}
-
-  <!-- Кнопки действий — после блока статусов -->
-  <div class="mt-5 flex items-center justify-between border-t border-[var(--border)] pt-4">
-    {#if isEdit}
-      <Button variant="danger" size="sm" onclick={handleDelete}>Удалить</Button>
+  {#if isEdit && item === null}
+    <!-- Открытие по ссылке / F5: задача ещё грузится в стор. Форму не создаём
+         раньше данных — иначе её начальные значения (захват через untrack)
+         останутся пустыми (см. ItemForm). После загрузки item появится и
+         сработает {#key itemId} с заполненными полями. -->
+    {#if itemsStore.loaded}
+      <p class="py-10 text-center text-[var(--text-secondary)]">Задача не найдена</p>
     {:else}
-      <span></span>
+      <Loader />
     {/if}
-    <Button type="submit" form="item-edit-form" disabled={saving}>
-      {isEdit ? 'Сохранить' : 'Создать'}
-    </Button>
-  </div>
+  {:else}
+    {#key itemId}
+      <ItemForm {item} onSave={handleSave} bind:saving />
+    {/key}
+
+    {#if isEdit}
+      <hr class="my-5 border-[var(--border)]" />
+      <Timeline {statuses} onAdd={handleAddStatus} onDelete={handleDeleteStatus} />
+    {/if}
+
+    <!-- Кнопки действий — после блока статусов -->
+    <div class="mt-5 flex items-center justify-between border-t border-[var(--border)] pt-4">
+      {#if isEdit}
+        <Button variant="danger" size="sm" onclick={handleDelete}>Удалить</Button>
+      {:else}
+        <span></span>
+      {/if}
+      <Button type="submit" form="item-edit-form" disabled={saving}>
+        {isEdit ? 'Сохранить' : 'Создать'}
+      </Button>
+    </div>
+  {/if}
 </Drawer>
