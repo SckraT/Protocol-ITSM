@@ -1,6 +1,9 @@
 # Dev-режим: бэкенд и фронтенд запускаются раздельно с hot-reload
 # Бэкенд: http://localhost:8000  (API + Swagger)
 # Фронтенд: http://localhost:5173 (Svelte dev server с HMR)
+# Имя compose-проекта зафиксировано — volume protocol_postgres-dev-data не зависит от имени папки.
+name: protocol
+
 services:
   postgres:
     image: postgres:16-alpine

@@ -1,4 +1,7 @@
 # Dev/prod: бэкенд + PostgreSQL. Фронтенд встроен в статику.
+# Имя compose-проекта зафиксировано — volume protocol_postgres-data не зависит от имени папки.
+name: protocol
+
 services:
   postgres:
     image: postgres:16-alpine
