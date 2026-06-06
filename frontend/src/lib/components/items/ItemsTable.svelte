@@ -50,7 +50,28 @@
   <div class="p-8 text-center text-[var(--text-secondary)]">Нет задач</div>
 {:else}
   <div class="table-wrap overflow-x-auto rounded-lg border border-[var(--border)]">
-    <table class="w-full text-sm">
+    <!-- table-fixed + colgroup: ширины столбцов фиксированы и не зависят от
+         содержимого, поэтому не «прыгают» при смене фильтра. Сумма ≈ 100%. -->
+    <table class="w-full table-fixed text-sm">
+      <colgroup>
+        <col class="w-[3%]" />
+        <!-- № -->
+        <col class="w-[4%]" />
+        <!-- Тема -->
+        <col class="w-[20%]" />
+        <!-- Тикет -->
+        <col class="w-[9%]" />
+        <!-- Приоритет -->
+        <col class="w-[9%]" />
+        <!-- Состояние -->
+        <col class="w-[11%]" />
+        <!-- Срок -->
+        <col class="w-[10%]" />
+        <!-- Исполнители -->
+        <col class="w-[17%]" />
+        <!-- Последний статус -->
+        <col class="w-[17%]" />
+      </colgroup>
       <thead class="bg-[var(--table-hover)] text-left text-xs text-[var(--text-secondary)]">
         <tr>
           <th class="px-3 py-2">

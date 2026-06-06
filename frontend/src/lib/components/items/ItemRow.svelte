@@ -50,7 +50,7 @@
   <!-- Тема (клик открывает Drawer) -->
   <td class="px-3 py-2">
     <button
-      class="text-left font-medium text-[var(--text-body)] hover:text-[var(--accent)] hover:underline"
+      class="break-words text-left font-medium text-[var(--text-body)] hover:text-[var(--accent)] hover:underline"
       onclick={() => onOpen(item.id)}
     >
       {item.topic}
@@ -58,7 +58,7 @@
   </td>
 
   <!-- Тикет -->
-  <td class="px-3 py-2 text-[var(--text-secondary)]">{item.ticket ?? ''}</td>
+  <td class="px-3 py-2 break-words text-[var(--text-secondary)]">{item.ticket ?? ''}</td>
 
   <!-- Приоритет -->
   <td class="px-3 py-2">
@@ -111,7 +111,7 @@
   <!-- Последний статус -->
   <td class="px-3 py-2 text-sm">
     {#if lastStatus}
-      <div class="text-[var(--text-body)]">{lastStatus.status_note ?? ''}</div>
+      <div class="break-words text-[var(--text-body)]">{lastStatus.status_note ?? ''}</div>
       <div class="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
         {#if lastStatus.status_date}<span>{fmtDate(lastStatus.status_date)}</span>{/if}
         {#if item.status_count > 0}
