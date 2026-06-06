@@ -58,6 +58,14 @@
     }
   });
 
+  async function handleExport(fmt: 'csv' | 'xlsx') {
+    try {
+      await (fmt === 'csv' ? exportCsv() : exportXlsx());
+    } catch (err) {
+      toastStore.error(err instanceof Error ? err.message : 'Ошибка экспорта');
+    }
+  }
+
   async function handleImport(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -91,10 +99,10 @@
     <Filters />
   </div>
   <div class="flex items-center gap-2">
-    <Button variant="secondary" size="sm" onclick={() => exportCsv()}>
+    <Button variant="secondary" size="sm" onclick={() => handleExport('csv')}>
       <Download size={14} /> CSV
     </Button>
-    <Button variant="secondary" size="sm" onclick={() => exportXlsx()}>
+    <Button variant="secondary" size="sm" onclick={() => handleExport('xlsx')}>
       <Download size={14} /> Excel
     </Button>
     <Button variant="secondary" size="sm" onclick={() => fileInput.click()}>

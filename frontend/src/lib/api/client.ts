@@ -184,7 +184,27 @@ export async function apiPostForm<T>(path: string, formData: FormData): Promise<
   return res.json() as Promise<T>;
 }
 
-/** Абсолютный URL для прямых ссылок (экспорт файлов). */
-export function apiUrl(path: string): string {
-  return `${API_BASE_URL}${path}`;
+/**
+ * Скачать файл авторизованным GET-запросом (экспорт CSV/XLSX).
+ * Прямая навигация (window.location) не годится: она не шлёт заголовок
+ * Authorization, и бэкенд отвечает 401. Поэтому грузим через apiFetch (с токеном),
+ * получаем blob и инициируем скачивание временной ссылкой <a download>.
+ * Имя файла берём из Content-Disposition, иначе — fallbackName.
+ */
+export async function apiDownload(path: string, fallbackName: string): Promise<void> {
+  const res = await apiFetch(path);
+  const blob = await res.blob();
+
+  const cd = res.headers.get('Content-Disposition') ?? '';
+  const match = /filename\*?=(?:UTF-8'')?["']?([^"';]+)/i.exec(cd);
+  const filename = match ? decodeURIComponent(match[1]) : fallbackName;
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

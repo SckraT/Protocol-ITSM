@@ -1,14 +1,14 @@
 // API для экспорта и импорта данных.
-import { apiPostForm, apiUrl } from './client';
+import { apiDownload, apiPostForm } from './client';
 
-/** Скачать CSV — прямая навигация для загрузки файла. */
-export function exportCsv(): void {
-  window.location.href = apiUrl('/export/csv');
+/** Скачать CSV (авторизованный запрос + blob). */
+export function exportCsv(): Promise<void> {
+  return apiDownload('/export/csv', 'protocol.csv');
 }
 
-/** Скачать XLSX. */
-export function exportXlsx(): void {
-  window.location.href = apiUrl('/export/xlsx');
+/** Скачать XLSX (авторизованный запрос + blob). */
+export function exportXlsx(): Promise<void> {
+  return apiDownload('/export/xlsx', 'protocol.xlsx');
 }
 
 /** Импортировать задачи из CSV-файла. */
