@@ -21,7 +21,7 @@
   const isLoginPage = $derived($page.url.pathname === '/login');
   const isChangePwPage = $derived($page.url.pathname === '/change-password');
 
-  onMount(async () => {
+  onMount(() => {
     // Auth guard: перенаправляем неавторизованных на /login
     if (!authStore.isAuthenticated && !isLoginPage) {
       goto('/login');
@@ -32,10 +32,22 @@
     window.addEventListener('auth:logout', () => {
       authStore.logout();
     });
+  });
 
-    // Загружаем данные только для авторизованных пользователей
-    if (authStore.isAuthenticated) {
-      await Promise.all([refsStore.load(), itemsStore.load(), meetingsStore.load()]);
+  // Загрузка данных при наличии авторизации. Реактивно (а не в onMount),
+  // потому что после логина goto('/') не перемонтирует layout и onMount
+  // повторно не вызывается — иначе список задач остаётся пустым до F5.
+  // dataLoaded — обычная переменная (не $state), чтобы не зациклить effect.
+  let dataLoaded = false;
+  $effect(() => {
+    if (authStore.isAuthenticated && !authStore.mustChangePassword) {
+      if (!dataLoaded) {
+        dataLoaded = true;
+        void Promise.all([refsStore.load(), itemsStore.load(), meetingsStore.load()]);
+      }
+    } else {
+      // Сброс при logout — следующий вход снова загрузит данные
+      dataLoaded = false;
     }
   });
 
