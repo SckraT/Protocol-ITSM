@@ -160,7 +160,7 @@
     <!-- Кнопки действий — после блока статусов -->
     <div class="mt-5 flex items-center justify-between border-t border-[var(--border)] pt-4">
       {#if isEdit}
-        <Button variant="danger" size="sm" onclick={handleDelete}>Удалить</Button>
+        <Button variant="danger" onclick={handleDelete}>Удалить</Button>
       {:else}
         <span></span>
       {/if}
