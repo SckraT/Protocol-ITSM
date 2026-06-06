@@ -24,6 +24,16 @@
   лоадер, а форма создаётся уже с данными (`{#key itemId}`). Для несуществующей
   задачи — сообщение «Задача не найдена».
 
+### Безопасность
+- **Rate-limiting переведён на Redis + учёт reverse-proxy** (аудит II, A1). Раньше лимитер
+  брал `request.client.host` — за nginx это IP прокси, поэтому брутфорс-защита `login (5/60)`
+  считалась суммарно по всем клиентам и блокировала вход всем сразу. Теперь:
+  - реальный IP берётся из `X-Real-IP`/`X-Forwarded-For` (nginx их проставляет);
+  - состояние — в Redis (sliding window на ZSET), общее для всех воркеров и переживает рестарт;
+  - если `REDIS_URL` не задан или Redis недоступен — graceful fallback на in-memory (dev/тесты).
+  Добавлены сервис `redis:7-alpine` в `docker-compose.yml`/`.prod`/`.local-prod`, зависимость
+  `redis>=5.0`, настройка `REDIS_URL`, модуль `app/redis_client.py`.
+
 ### Изменено (инфраструктура)
 - **Имя compose-проекта зафиксировано** (`name: protocol` во всех `docker-compose*.yml`):
   после переноса репозитория в другую папку имя проекта (и volume `protocol_postgres-data`)

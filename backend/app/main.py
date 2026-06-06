@@ -31,6 +31,7 @@ from app.database import async_session, engine
 from app.dependencies import forbid_pending_password_change
 from app.logging_config import configure_logging, logger
 from app.middleware.rate_limit import RateLimitMiddleware
+from app.redis_client import close_redis
 from app.repositories.user_repository import UserRepository
 from app.routers.auth import router as auth_router
 from app.routers.departments import router as departments_router
@@ -113,6 +114,7 @@ async def lifespan(app: FastAPI):
 
     # Закрываем соединения при остановке
     await engine.dispose()
+    await close_redis()
 
 
 async def _seed_first_admin() -> None:

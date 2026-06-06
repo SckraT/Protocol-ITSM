@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     # Разрешённые источники для CORS (через запятую)
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:8000"
 
+    # Redis для rate-limiting (sliding window, общий для всех воркеров/инстансов).
+    # Пусто — лимитер работает in-memory (один инстанс; режим для dev/тестов).
+    # В проде: redis://redis:6379/0 (см. docker-compose).
+    REDIS_URL: str = ""
+
     # JWT-аутентификация
     SECRET_KEY: str = "change-me-in-production-use-strong-random-key"
     JWT_ALGORITHM: str = "HS256"
